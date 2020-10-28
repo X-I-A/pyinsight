@@ -1,10 +1,10 @@
 import os
 import json
-import insight
-from insight.utils.exceptions import *
-from insight.action import Action
-from insight.utils.validation import *
-from insight.utils.core import *
+import pyinsight
+from pyinsight.utils.exceptions import *
+from pyinsight.action import Action
+from pyinsight.utils.validation import *
+from pyinsight.utils.core import *
 
 __all__ = ['Packager']
 

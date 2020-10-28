@@ -1,8 +1,8 @@
 import json
 import gzip
 import base64
-from insight.action import Action
-from insight.utils.core import filter_column, filter_dnf
+from pyinsight.action import Action
+from pyinsight.utils.core import filter_column, filter_dnf
 
 __all__ = ['Dispatcher']
 

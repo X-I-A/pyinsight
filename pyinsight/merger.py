@@ -1,9 +1,9 @@
 import os, json, logging
-import insight
-from insight.utils.exceptions import *
-from insight.action import *
-from insight.utils.validation import *
-from insight.utils.core import *
+import pyinsight
+from pyinsight.utils.exceptions import *
+from pyinsight.action import *
+from pyinsight.utils.validation import *
+from pyinsight.utils.core import *
 
 __all__ = ['Merger', 'AgeMerger', 'NormalMerger']
 

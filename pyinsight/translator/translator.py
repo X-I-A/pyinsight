@@ -2,8 +2,8 @@ import json
 import base64
 import gzip
 import logging
-import insight.utils.core
-from insight.worker import Worker
+import pyinsight.utils.core
+from pyinsight.worker import Worker
 
 class Translator(Worker):
     # Simplest Case : No data spec change
@@ -14,7 +14,7 @@ class Translator(Worker):
 
     @classmethod
     def encoder(cls, data, src_encode, tar_encode):
-        return insight.utils.core.encoder(data, src_encode, tar_encode)
+        return pyinsight.utils.core.encoder(data, src_encode, tar_encode)
 
     # Depositor Scope - Data format = record
     def get_depositor_data(self, data, src_encode, tar_encode, header):
