@@ -6,17 +6,17 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="pyinsight-x-i-a", # Replace with your own username
     version="0.0.1",
-    author="Example Author",
-    author_email="author@example.com",
-    description="A small example package",
+    author="Soral",
+    author_email="soral@x-i-a.com",
+    description="Insight Core Module Python Version",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/pypa/sampleproject",
+    url="https://github.com/X-I-A/pyinsight",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.5',
 )
