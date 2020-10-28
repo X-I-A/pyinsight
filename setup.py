@@ -4,18 +4,18 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="insight",
+    name="pyinsight",
     version="0.0.1",
     author="Soral",
     author_email="soral@x-i-a.com",
     description="Insight Core Module Python Version",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/X-I-A/insight",
+    url="https://github.com/X-I-A/pyinsight",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.5',
