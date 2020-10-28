@@ -1,8 +1,8 @@
 import os, json, logging
-import pyinsight
-from pyinsight.utils.exceptions import *
-from pyinsight.action import *
-from pyinsight.utils.core import get_sort_key_from_dict
+import insight
+from insight.utils.exceptions import *
+from insight.action import *
+from insight.utils.core import get_sort_key_from_dict
 
 __all__ = ['Cleaner']
 

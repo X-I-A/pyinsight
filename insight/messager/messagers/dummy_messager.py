@@ -1,13 +1,13 @@
 import os
 import json
-from pyinsight import messager
-from pyinsight.utils.core import *
+from insight import messager
+from insight.utils.core import *
 
 class DummyMessager(messager.Messager):
     home_path = os.path.expanduser('~')
     def __init__(self):
         super().__init__()
-        self.home_path = os.path.join(self.home_path, 'pyinsight')
+        self.home_path = os.path.join(self.home_path, 'insight')
         for name, path in self.__dict__.items():
             if name.endswith('_path') and not os.path.exists(path):
                 os.makedirs(path)

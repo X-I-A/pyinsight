@@ -1,4 +1,4 @@
-from pyinsight.worker import Worker
+from insight.worker import Worker
 
 class Archiver(Worker):
     topic_id = None

@@ -1,8 +1,8 @@
 import os
 import json
 import shutil
-from pyinsight import archiver
-from pyinsight.utils.core import *
+from insight import archiver
+from insight.utils.core import *
 
 class FileArchiver(archiver.Archiver):
     home_path = os.path.expanduser('~')

@@ -1,9 +1,9 @@
 import json
 import logging
-import pyinsight
-from pyinsight.transfer import Transfer
-from pyinsight.dispatcher import Dispatcher
-from pyinsight.utils.core import get_sort_key_from_dict, encoder
+import insight
+from insight.transfer import Transfer
+from insight.dispatcher import Dispatcher
+from insight.utils.core import get_sort_key_from_dict, encoder
 
 __all__ = ['Loader']
 

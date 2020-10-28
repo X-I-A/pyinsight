@@ -1,11 +1,11 @@
 import os
 import json
 import threading
-import pyinsight
-from pyinsight.utils.exceptions import *
-from pyinsight.transfer import Transfer
-from pyinsight.utils.validation import *
-from pyinsight.utils.core import *
+import insight
+from insight.utils.exceptions import *
+from insight.transfer import Transfer
+from insight.utils.validation import *
+from insight.utils.core import *
 
 
 __all__ = ['Receiver']
@@ -73,7 +73,7 @@ class Receiver(Transfer):
         handlers = list()
         for client_id in list(client_set):
             dispatcher = self.client_dict.get(client_id, None)
-            if dispatcher and isinstance(dispatcher, pyinsight.dispatcher.Dispatcher):
+            if dispatcher and isinstance(dispatcher, insight.dispatcher.Dispatcher):
                 cur_handler = threading.Thread(target=self.dispatch_data,
                                                args=(dispatcher, header, dispatch_body_data))
                 cur_handler.start()

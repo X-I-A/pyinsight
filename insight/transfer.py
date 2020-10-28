@@ -1,9 +1,9 @@
 import logging
-from pyinsight.action import Action
-from pyinsight.dispatcher import Dispatcher
-from pyinsight.messager import Messager
-from pyinsight.archiver import Archiver
-from pyinsight.utils.core import filter_column
+from insight.action import Action
+from insight.dispatcher import Dispatcher
+from insight.messager import Messager
+from insight.archiver import Archiver
+from insight.utils.core import filter_column
 
 __all__ = ['Transfer']
 

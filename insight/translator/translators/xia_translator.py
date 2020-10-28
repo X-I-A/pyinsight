@@ -1,5 +1,5 @@
 import json
-from pyinsight import translator
+from insight import translator
 
 class XIATranslator(translator.Translator):
     spec_list = ['x-i-a']

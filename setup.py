@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="pyinsight-x-i-a", # Replace with your own username
+    name="insight",
     version="0.0.1",
     author="Soral",
     author_email="soral@x-i-a.com",
     description="Insight Core Module Python Version",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/X-I-A/pyinsight",
+    url="https://github.com/X-I-A/insight",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
