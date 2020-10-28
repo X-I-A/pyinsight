@@ -1,12 +1,12 @@
 import os
 import json
 import logging
-import insight
-from insight.utils.exceptions import *
-from insight.messager.messagers import DummyMessager
-from insight.depositor.depositors import FileDepositor
-from insight.archiver.archivers import FileArchiver
-from insight.translator.translators import SapTranslator, XIATranslator
+import pyinsight
+from pyinsight.utils.exceptions import *
+from pyinsight.messager.messagers import DummyMessager
+from pyinsight.depositor.depositors import FileDepositor
+from pyinsight.archiver.archivers import FileArchiver
+from pyinsight.translator.translators import SapTranslator, XIATranslator
 
 
 __all__ = ['Action']
@@ -28,7 +28,7 @@ class Action():
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list(), log_level=logging.WARNING):
         if not messager:
             self.messager = DummyMessager()
-        elif isinstance(messager, insight.messager.Messager):
+        elif isinstance(messager, pyinsight.messager.Messager):
             self.messager = messager
         else:
             logging.error("The Choosen Messenger has a wrong Type, Initialization Failed")
@@ -36,7 +36,7 @@ class Action():
 
         if not depositor:
             self.depositor = FileDepositor()
-        elif isinstance(depositor, insight.depositor.Depositor):
+        elif isinstance(depositor, pyinsight.depositor.Depositor):
             self.depositor = depositor
         else:
             logging.error("The Choosen Depositor has a wrong Type, Initialization Failed")
@@ -44,7 +44,7 @@ class Action():
 
         if not archiver:
             self.archiver = FileArchiver()
-        elif isinstance(archiver, insight.archiver.Archiver):
+        elif isinstance(archiver, pyinsight.archiver.Archiver):
             self.archiver = archiver
         else:
             logging.error("The Choosen Archiver has a wrong Type, Initialization Failed")
@@ -58,7 +58,7 @@ class Action():
                 self.translators[spec] = std_trans
         # Customized Translators (can overwrite standard ones)
         for cust_trans in translators:
-            if isinstance(cust_trans, insight.translator.Translator):
+            if isinstance(cust_trans, pyinsight.translator.Translator):
                 for spec in cust_trans.spec_list:
                     self.translators[spec] = cust_trans
             else:

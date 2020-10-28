@@ -1,13 +1,13 @@
-from insight.worker import Worker
+from pyinsight.worker import Worker
 
 class Messager(Worker):
     blob_support = False
-    topic_cockpit  = 'insight-cockpit'
-    topic_cleaner  = 'insight-cleaner'
-    topic_merger   = 'insight-merger'
-    topic_packager = 'insight-packager'
-    topic_loader   = 'insight-loader'
-    topic_backlog  = 'insight-backlog'
+    topic_cockpit  = 'pyinsight-cockpit'
+    topic_cleaner  = 'pyinsight-cleaner'
+    topic_merger   = 'pyinsight-merger'
+    topic_packager = 'pyinsight-packager'
+    topic_loader   = 'pyinsight-loader'
+    topic_backlog  = 'pyinsight-backlog'
 
     def __init__(self): pass
 

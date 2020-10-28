@@ -1,6 +1,6 @@
 import json
 import logging
-from insight import translator
+from pyinsight import translator
 
 class SapTranslator(translator.Translator):
     spec_list = ['slt', 'ddic']
