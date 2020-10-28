@@ -2,12 +2,12 @@ from pyinsight.worker import Worker
 
 class Messager(Worker):
     blob_support = False
-    topic_cockpit  = 'pyinsight-cockpit'
-    topic_cleaner  = 'pyinsight-cleaner'
-    topic_merger   = 'pyinsight-merger'
-    topic_packager = 'pyinsight-packager'
-    topic_loader   = 'pyinsight-loader'
-    topic_backlog  = 'pyinsight-backlog'
+    topic_cockpit  = 'insight-cockpit'
+    topic_cleaner  = 'insight-cleaner'
+    topic_merger   = 'insight-merger'
+    topic_packager = 'insight-packager'
+    topic_loader   = 'insight-loader'
+    topic_backlog  = 'insight-backlog'
 
     def __init__(self): pass
 
@@ -24,14 +24,20 @@ class Messager(Worker):
     def extract_message_content(self, message): pass
 
     # Clean All Data before the precised start_seq
-    def trigger_clean(self, topic_id, table_id, start_seq): pass
+    def trigger_clean(self, topic_id, table_id, start_seq):
+        header = {'topic_id':topic_id, 'table_id':table_id, 'start_seq':start_seq}
+        return self.publish(self.topic_cleaner, header, '')
 
     # Trigger the merge process
-    def trigger_merge(self, topic_id, table_id, merge_key, merge_level): pass
+    def trigger_merge(self, topic_id, table_id,  merge_key, merge_level):
+        header = {'topic_id':topic_id,'table_id':table_id,'merge_key':merge_key, 'merge_level':merge_level}
+        return self.publish(self.topic_merger, header, '')
 
     # Trigger the package process
-    def trigger_package(self, topic_id, table_id): pass
+    def trigger_package(self, topic_id, table_id):
+        header = {'topic_id':topic_id, 'table_id':table_id}
+        return self.publish(self.topic_packager, header, '')
 
-    # Trigger the load process of packaged data
-    def trigger_load(self, load_config: dict): pass
-
+    # Trigger the load process of header or packaged data
+    def trigger_load(self, load_config: dict):
+        return self.publish(self.topic_loader, load_config, '')

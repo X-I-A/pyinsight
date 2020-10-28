@@ -46,23 +46,6 @@ class DummyMessager(messager.Messager):
         subscription_path = os.path.join(self.home_path, subscription_id)
         os.remove(os.path.join(subscription_path, msg_id))
 
-    # Clean All Data before the precised start_seq
-    def trigger_clean(self, topic_id, table_id, start_seq):
-        header = {'topic_id':topic_id, 'table_id':table_id, 'start_seq':start_seq}
-        return self.publish(self.topic_cleaner, header, '')
 
-    # Trigger the merge process
-    def trigger_merge(self, topic_id, table_id,  merge_key, merge_level):
-        header = {'topic_id':topic_id,'table_id':table_id,'merge_key':merge_key, 'merge_level':merge_level}
-        return self.publish(self.topic_merger, header, '')
-
-    # Trigger the package process
-    def trigger_package(self, topic_id, table_id):
-        header = {'topic_id':topic_id, 'table_id':table_id}
-        return self.publish(self.topic_packager, header, '')
-
-    # Trigger the load process of header or packaged data
-    def trigger_load(self, load_config: dict):
-        return self.publish(self.topic_loader, load_config, '')
 
 
