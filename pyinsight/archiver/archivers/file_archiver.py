@@ -13,7 +13,7 @@ class FileArchiver(archiver.Archiver):
     def __init__(self):
         super().__init__()
         self.workspace = [[]] # List of record data type in FileArchiver
-        self.home_path = os.path.join(self.home_path, 'archive')
+        self.home_path = os.path.join(self.home_path, 'insight-archive')
         for name, path in self.__dict__.items():
             if name.endswith('_path') and not os.path.exists(path):
                 os.makedirs(path)

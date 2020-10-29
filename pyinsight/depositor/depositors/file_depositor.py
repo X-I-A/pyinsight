@@ -10,7 +10,7 @@ class FileDepositor(depositor.Depositor):
 
     def __init__(self):
         super().__init__()
-        self.home_path = os.path.join(self.home_path, 'insight')
+        self.home_path = os.path.join(self.home_path, 'insight-depositor')
         for name, path in self.__dict__.items():
             if name.endswith('_path') and not os.path.exists(path):
                 os.makedirs(path)
