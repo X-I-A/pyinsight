@@ -1,7 +1,7 @@
 import os
 import json
 from pyinsight import depositor
-from pyinsight.utils.core import *
+from pyinsight.utils.core import get_current_timestamp, encoder, get_merge_level
 
 class FileDepositor(depositor.Depositor):
     home_path = os.path.expanduser('~')
@@ -10,7 +10,7 @@ class FileDepositor(depositor.Depositor):
 
     def __init__(self):
         super().__init__()
-        self.home_path = os.path.join(self.home_path, 'pyinsight')
+        self.home_path = os.path.join(self.home_path, 'insight')
         for name, path in self.__dict__.items():
             if name.endswith('_path') and not os.path.exists(path):
                 os.makedirs(path)
@@ -26,7 +26,7 @@ class FileDepositor(depositor.Depositor):
         else:
             return file+'.packaged'
 
-    def add_document(self, header, data):
+    def add_document(self, header, data) -> bool:
         self.set_current_topic_table(header['topic_id'], header['table_id'])
         content = header.copy()
         content['data'] = data
@@ -47,14 +47,16 @@ class FileDepositor(depositor.Depositor):
         # Save at last
         with open(os.path.join(self.table_path, filename), 'w') as f:
             f.write(json.dumps(content))
+        return True
 
-    def update_document(self, ref, data):
+    def update_document(self, ref, doc_dict) -> bool:
         ori_filename = os.path.join(self.table_path, ref)
-        tar_filename = os.path.join(self.table_path, '.'.join([ref.split('.')[0], data['merge_status']]))
+        tar_filename = os.path.join(self.table_path, '.'.join([ref.split('.')[0], doc_dict['merge_status']]))
         with open(tar_filename, 'w') as f:
-            f.write(json.dumps(data))
+            f.write(json.dumps(doc_dict))
         if ori_filename != tar_filename:
             os.remove(ori_filename)
+        return True
 
     # All of the following method need
     def set_current_topic_table(self, topic_id, table_id):
@@ -117,11 +119,13 @@ class FileDepositor(depositor.Depositor):
         with open(os.path.join(self.table_path, self._get_ref_from_filename(doc_ref))) as f:
             return json.load(f)
 
-    def delete_documents(self, ref_list):
+    def delete_documents(self, ref_list) -> bool:
         for file_to_delete in ref_list:
             os.remove(os.path.join(self.table_path, self._get_ref_from_filename(file_to_delete)))
+        return True
 
-    def merge_documents(self, base_doc, merge_flag, start_key, end_key, data_list, min_start=None, merged_level=0):
+    def merge_documents(self, base_doc, merge_flag, start_key, end_key, data_list,
+                        min_start=None, merged_level=0) -> bool:
         base_doc_dict = self.get_dict_from_ref(base_doc)
         data_operation_flag = False
         if 'age' in base_doc_dict:
@@ -137,7 +141,7 @@ class FileDepositor(depositor.Depositor):
         # Case 1: Merged Member Nodes / Leader with same min_start = Do nothing
         if base_doc_dict['merge_status'] == 'merged':
             if not min_start or min_start == segment_key_start:
-                return
+                return data_operation_flag
         # Case 2: Leader nodes, need to update min_start
         if min_start:
             base_doc_dict['merged_level'] = merged_level
@@ -168,3 +172,4 @@ class FileDepositor(depositor.Depositor):
         else:
             with open(os.path.join(self.table_path, base_doc), 'w') as f:
                 f.write(json.dumps(base_doc_dict))
+        return data_operation_flag

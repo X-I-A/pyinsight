@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pyinsight",
-    version="0.0.1",
+    version="0.0.2",
     author="Soral",
     author_email="soral@x-i-a.com",
     description="Insight Core Module Python Version",

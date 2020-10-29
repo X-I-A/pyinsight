@@ -30,7 +30,7 @@ __all__ = action.__all__ \
         + merger.__all__ \
         + packager.__all__
 
-VERSION = (0, 0, 1)
+VERSION = (0, 0, 2)
 
 def get_version():
     """Return the VERSION as a string.

@@ -32,6 +32,8 @@ class Receiver(Transfer):
         # 1.4 Header data related actions
         else:
             self.messager.trigger_clean(header['topic_id'], header['table_id'], header['start_seq'])
+            header['merge_status'] = 'header'
+            header['merge_level'] = 8
         # 2. Translation
         # Case 1: data_spec found and translator found
         if 'data_spec' in header:
@@ -84,7 +86,7 @@ class Receiver(Transfer):
         self.depositor.add_document(header, prepared_data)
         self.archiver.remove_data()
         # 5. Check if the first level merge process should be triggered
-        if header.get('merge_level', 0) > 0:
+        if header.get('merge_level', 0) > 0 and header.get('merge_status', '') != 'header':
             self.messager.trigger_merge(header['topic_id'], header['table_id'],
                                         header['merge_key'], header['merge_level'])
         # 6. Wait until all the dispatch thread are finished
