@@ -55,17 +55,20 @@ class Receiver(Transfer):
         # 2.2 Archiver Scope
         elif header['data_store'] == 'file':
             self.archiver.set_merge_key(header['merge_key'])
-            # 2.2.1 If the spec is already xia. Just move the archive
+            # Step 1: Get the dict data of 'x-i-a' specification
             if header['data_spec'] == 'x-i-a':
-                prepared_data = self.archiver.receive_archive(data, header['merge_key'])
-            # 2.2.2 Transformation is needed
-            else:
                 raw_data = self.archiver.read_data_from_file(data)
-                translated_data = active_translator.get_archive_data(raw_data, header)
-                self.archiver.add_data(translated_data)
-                prepared_data = self.archiver.archive_data()
-            header['merge_status'] = 'packaged'
-            header['data_encode'] = self.archiver.data_encode
+            else:
+                raw_data = active_translator.get_archive_data(self.archiver.read_data_from_file(data), header)
+            # Step 2: Cut the data and reload the receive data in "Depositor Mode"
+            header['data_spec'] = 'x-i-a'
+            header['data_store'] = 'body'
+            header['data_encode'] = 'flat'
+            for chunk_header in get_data_chunk(raw_data, header):
+                chunk_data = chunk_header.pop('data')
+                self.receive_data(chunk_header, chunk_data)
+            # Task is splitted, no need to continue for the current task
+            return
         else:
             logging.error("Data Store Type {} Not Supported".format(header['data_store']))
             return
@@ -92,3 +95,4 @@ class Receiver(Transfer):
         # 6. Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()
+        return

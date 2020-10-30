@@ -1,14 +1,18 @@
 import os
 import json
 import shutil
+import gzip
+import logging
 from pyinsight import archiver
-from pyinsight.utils.core import *
+from pyinsight.utils.core import filter_table_dnf
 
 class FileArchiver(archiver.Archiver):
     home_path = os.path.expanduser('~')
     data_encode = 'gzip'
     data_format = 'record'
     data_store = 'file'
+    supported_encodes = ['gzip']
+    supported_formats = ['record']
 
     def __init__(self):
         super().__init__()
@@ -49,8 +53,15 @@ class FileArchiver(archiver.Archiver):
             f.write(json.dumps(self.workspace[0]).encode())
         return archive_file_name
 
-    def read_data_from_file(self, path):
-        with gzip.open(path) as f:
+    def read_data_from_file(self, data_encode, data_format, file_path):
+        if data_encode not in self.supported_encodes:
+            logging.error("{}-{}: Encode {} not supported".format(self.topic_id, self.table_id, data_encode))
+        if data_format not in self.supported_formats:
+            logging.error("{}-{}: Format {} not supported".format(self.topic_id, self.table_id, data_encode))
+        if not os.path.exists(file_path):
+            logging.error("{}-{}: Path {} not found / compatible".format(self.topic_id, self.table_id, file_path))
+        # So the data must be a zipped record local system file:
+        with gzip.open(file_path) as f:
             return json.load(f)
 
     def append_archive(self, append_merge_key, fields=None, filters=None):
@@ -67,7 +78,7 @@ class FileArchiver(archiver.Archiver):
                 table_data = [filter_column(line, field_list) for line in table_data]
                 table_size = len(json.dumps(table_data))
             else:
-                table_data = [line for line in table_data if filter_dnf(line, filter_list)]
+                table_data = filter_table_dnf(table_data, filter_list)
                 if field_list:
                     table_data = [filter_column(line, field_list) for line in table_data]
                 table_size = len(json.dumps(table_data))
@@ -77,9 +88,3 @@ class FileArchiver(archiver.Archiver):
     def remove_archives(self, merge_key_list):
         for merge_key in merge_key_list:
             os.remove(os.path.join(self.table_path, merge_key + '.gz'))
-
-    def receive_archive(self, from_path, merge_key):
-        archive_file_name = os.path.join(self.table_path, merge_key + '.gz')
-        if archive_file_name != from_path:
-            shutil.copy2(from_path, archive_file_name)
-        return archive_file_name

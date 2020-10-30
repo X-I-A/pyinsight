@@ -1,9 +1,11 @@
 import os
 import gzip
+import json
 import base64
 import hashlib
 import datetime
 import logging
+from .exceptions import InsightDataSpecError
 
 MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 20)
 PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 25)
@@ -30,9 +32,12 @@ def xia_ne(a, b):
 # Operation Dictionary:
 oper = {'=': xia_eq, '>=': xia_ge, '>': xia_gt, '<=': xia_le, '<': xia_lt, '!=': xia_ne, '<>': xia_ne}
 
-# disjunctive normal form application (DNF)
-def filter_dnf(line, ndf_filters):
+# disjunctive normal form filters (DNF)
+def filter_dnf(line: dict, ndf_filters):
     return any([all([oper.get(l2[1])(line.get(l2[0],None),l2[2]) for l2 in l1 if len(l2)>0]) for l1 in ndf_filters])
+
+def filter_table_dnf(dict_list, ndf_filters):
+    return [line for line in dict_list if filter_dnf(line, ndf_filters)]
 
 # Get dnf filter field set
 def get_fields_from_filter(ndf_filters):
@@ -40,8 +45,11 @@ def get_fields_from_filter(ndf_filters):
 
 # Dictionary Related Operation
 # retrieve list of keys from
-def filter_column(table_line, field_list):
-    return {key: value for key, value in table_line.items() if key in field_list}
+def filter_column(line: dict, field_list):
+    return {key: value for key, value in line.items() if key in field_list}
+
+def filter_table_column(dict_list: list, field_list):
+    return [filter_column(line, field_list) for line in dict_list]
 
 # Remove all Null values
 def remove_none(dict):
@@ -65,6 +73,47 @@ def encoder(data, src_encode, tar_encode):
         return base64.b64decode(data.encode())
     else:
         logging.error('Data Encode {}-{} not implemented'.format(src_encode, tar_encode))
+
+# Data Cut and Send
+def get_data_chunk(input_data: list, input_header: dict):
+    tar_content = input_header.copy()
+    # Case 1 : Aged Document => Must be cut age by age
+    if 'age' in input_header:
+        sorted_data = sorted(input_data, key=lambda line: line['_AGE'])
+        data_chunk, start_age, cur_age = list(), 0, 0
+        for line in sorted_data:
+            if start_age == 0:
+                start_age = int(input_header['age'])
+            if line['_AGE'] != cur_age and data_chunk:
+                tar_content['age'] = start_age
+                tar_content['end_age'] = line['_AGE'] - 1
+                tar_content['data'] = json.dumps(data_chunk)
+                yield tar_content
+                data_chunk = list()
+                start_age = line['_AGE']
+            data_chunk.append(line)
+            cur_age = line['_AGE']
+        tar_content['age'] = start_age
+        tar_content['end_age'] = int(input_header.get('end_age', input_header['age']))
+        tar_content['data'] = json.dumps(data_chunk)
+        yield tar_content
+    # Case 2 : Normal Document
+    else:
+        sorted_data = sorted(input_data, key=lambda line: line['_SEQ'])
+        data_chunk, cur_seq = list(), ''
+        for line in sorted_data:
+            if not cur_seq:
+                cur_seq = line['_SEQ']
+            if line['_SEQ'] != cur_seq and data_chunk:
+                tar_content['start_seq'] = cur_seq
+                tar_content['data'] = json.dumps(data_chunk)
+                yield tar_content
+                data_chunk = list()
+            data_chunk.append(line)
+            cur_seq = line['_SEQ']
+        tar_content['start_seq'] = cur_seq
+        tar_content['data'] = json.dumps(data_chunk)
+        yield tar_content
 
 # Miscellous
 def get_current_timestamp():
