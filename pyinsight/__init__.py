@@ -1,5 +1,7 @@
 from .utils import *
 
+__version__ = "0.0.6"
+
 # Module Import
 from pyinsight import action
 from pyinsight import transfer
@@ -30,12 +32,3 @@ __all__ = action.__all__ \
         + merger.__all__ \
         + packager.__all__
 
-VERSION = (0, 0, 5)
-
-def get_version():
-    """Return the VERSION as a string.
-    For example, if `VERSION == (0, 10, 7)`, return '0.10.7'.
-    """
-    return ".".join(map(str, VERSION))
-
-__version__ = get_version()
