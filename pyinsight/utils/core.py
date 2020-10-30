@@ -5,8 +5,8 @@ import hashlib
 import datetime
 import logging
 
-MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 18)
-PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 26)
+MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 20)
+PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 25)
 
 # DNF Filter Related
 def xia_eq(a, b):
