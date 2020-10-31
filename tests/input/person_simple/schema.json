@@ -1,0 +1,72 @@
+{
+  "id": 267837,
+  "num_rows": 1000,
+  "file_format": "json",
+  "name": "person_simple",
+  "array": true,
+  "columns": [
+    {
+      "name": "id",
+      "null_percentage": 0,
+      "type": "Row Number",
+      "formula": ""
+    },
+    {
+      "name": "first_name",
+      "null_percentage": 0,
+      "type": "First Name",
+      "formula": ""
+    },
+    {
+      "name": "last_name",
+      "null_percentage": 0,
+      "type": "Last Name",
+      "formula": ""
+    },
+    {
+      "name": "email",
+      "null_percentage": 20,
+      "type": "Email Address",
+      "formula": ""
+    },
+    {
+      "name": "gender",
+      "null_percentage": 5,
+      "type": "Gender",
+      "formula": ""
+    },
+    {
+      "name": "city",
+      "null_percentage": 30,
+      "type": "City",
+      "formula": ""
+    },
+    {
+      "name": "birthday",
+      "null_percentage": 40,
+      "type": "Datetime",
+      "min": "10/30/1920",
+      "max": "10/30/2010",
+      "format": "%Y-%m-%d",
+      "formula": ""
+    },
+    {
+      "name": "weight",
+      "null_percentage": 15,
+      "type": "Number",
+      "min": 40,
+      "max": 120,
+      "decimals": 0,
+      "formula": ""
+    },
+    {
+      "name": "height",
+      "null_percentage": 10,
+      "type": "Number",
+      "min": 150,
+      "max": 200,
+      "decimals": 0,
+      "formula": ""
+    }
+  ]
+}

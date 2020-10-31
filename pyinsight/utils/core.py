@@ -3,6 +3,7 @@ import gzip
 import json
 import base64
 import hashlib
+import time
 import datetime
 import logging
 from .exceptions import InsightDataSpecError
@@ -10,6 +11,10 @@ from .exceptions import InsightDataSpecError
 MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 20)
 PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 25)
 
+"""
+Filter Section :
+- Filed List
+"""
 # DNF Filter Related
 def xia_eq(a, b):
     return a is not None and a == b
@@ -32,28 +37,39 @@ def xia_ne(a, b):
 # Operation Dictionary:
 oper = {'=': xia_eq, '>=': xia_ge, '>': xia_gt, '<=': xia_le, '<': xia_lt, '!=': xia_ne, '<>': xia_ne}
 
-# disjunctive normal form filters (DNF)
-def filter_dnf(line: dict, ndf_filters):
-    return any([all([oper.get(l2[1])(line.get(l2[0],None),l2[2]) for l2 in l1 if len(l2)>0]) for l1 in ndf_filters])
-
-def filter_table_dnf(dict_list, ndf_filters):
-    return [line for line in dict_list if filter_dnf(line, ndf_filters)]
+# Remove all Null values
+def remove_none(dict):
+    return {key: value for key, value in dict.items() if value}
 
 # Get dnf filter field set
 def get_fields_from_filter(ndf_filters):
     return set([x[0] for l1 in ndf_filters for x in l1 if len(x)>0])
 
+# disjunctive normal form filters (DNF)
+def _filter_dnf(line: dict, ndf_filters):
+    return any([all([oper.get(l2[1])(line.get(l2[0],None),l2[2]) for l2 in l1 if len(l2)>0]) for l1 in ndf_filters])
+
+def filter_table_dnf(dict_list, ndf_filters):
+    return [line for line in dict_list if _filter_dnf(line, ndf_filters)]
+
 # Dictionary Related Operation
 # retrieve list of keys from
-def filter_column(line: dict, field_list):
+def _filter_column(line: dict, field_list):
     return {key: value for key, value in line.items() if key in field_list}
 
 def filter_table_column(dict_list: list, field_list):
-    return [filter_column(line, field_list) for line in dict_list]
+    return [_filter_column(line, field_list) for line in dict_list]
 
-# Remove all Null values
-def remove_none(dict):
-    return {key: value for key, value in dict.items() if value}
+# Field_list + Filter solution => Apply to table
+def filter_table(dict_list: list, field_list=list(), filter_list=list(list(list()))):
+    if filter_list == list(list(list())) and not field_list:
+        return dict_list
+    elif filter_list == list(list(list())):
+        return filter_table_column(dict_list, field_list)
+    elif not field_list:
+        return filter_table_dnf(dict_list, filter_list)
+    else:
+        return filter_table_column(filter_table_dnf(dict_list, filter_list), field_list)
 
 # Allowed Transformation Matrix ['flat', 'b54g', 'gzip']
 def encoder(data, src_encode, tar_encode):
@@ -115,8 +131,9 @@ def get_data_chunk(input_data: list, input_header: dict):
         tar_content['data'] = json.dumps(data_chunk)
         yield tar_content
 
-# Miscellous
+# Miscellaneous
 def get_current_timestamp():
+    time.sleep(0.000001)
     return datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
 def get_sort_key_from_dict(doc_dict: dict):

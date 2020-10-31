@@ -4,13 +4,20 @@ from pyinsight import messager
 from pyinsight.utils.core import *
 
 class DummyMessager(messager.Messager):
-    home_path = os.path.expanduser('~')
+    home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')
+
     def __init__(self):
         super().__init__()
-        self.home_path = os.path.join(self.home_path, 'insight-messager')
-        for name, path in self.__dict__.items():
-            if name.endswith('_path') and not os.path.exists(path):
-                os.makedirs(path)
+
+    def init_topic(self, topic_id):
+        self.topic_id = topic_id
+        for key in dir(self):
+            if key.startswith('topic_'):
+                topic_name = getattr(self, key)
+                if isinstance(topic_name, str):
+                    path = os.path.join(self.home_path, getattr(self, key))
+                    if not os.path.exists(path):
+                        os.makedirs(path)
 
     # Publish Message
     def publish(self, topic_id, header, body):
@@ -39,7 +46,7 @@ class DummyMessager(messager.Messager):
 
     # Translate Message Content
     def extract_message_content(self, message):
-        return message['header'], message['data'], message['id'], message['topic_id']
+        return message['header'], message['data'], message['id']
 
     # Acknowledge Reception
     def ack(self, subscription_id, msg_id):
