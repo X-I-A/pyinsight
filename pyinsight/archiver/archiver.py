@@ -11,6 +11,8 @@ class Archiver(Worker):
     data_encode = ''
     data_format = ''
     data_store = ''
+    supported_encodes = list()
+    supported_formats = list()
 
     def __init__(self): pass
 
@@ -32,10 +34,8 @@ class Archiver(Worker):
 
     def archive_data(self) -> str: pass
 
-    def read_data_from_file(self, path) -> dict: pass
+    def read_data_from_file(self, data_encode, data_format, file_path) -> list: pass
 
     def append_archive(self, append_merge_key, fields=None, filters=None): pass
 
     def remove_archives(self, merge_key_list): pass
-
-    def receive_archive(self, from_path, merge_key) -> str: pass

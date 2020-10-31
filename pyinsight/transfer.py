@@ -3,7 +3,7 @@ from pyinsight.action import Action
 from pyinsight.dispatcher import Dispatcher
 from pyinsight.messager import Messager
 from pyinsight.archiver import Archiver
-from pyinsight.utils.core import filter_column
+from pyinsight.utils.core import filter_table_column
 
 __all__ = ['Transfer']
 
@@ -54,7 +54,7 @@ class Transfer(Action):
         # Body Data Type => Only send needed column
         elif header['data_store'] == 'body':
             if field_list:
-                tar_body_data = [filter_column(line, field_list) for line in body_data]
+                tar_body_data = filter_table_column(body_data, field_list)
             else:
                 tar_body_data = body_data
             return dispatcher.dispatch(header, tar_body_data, None, tar_topic_id, tar_table_id)
@@ -66,7 +66,7 @@ class Transfer(Action):
             # Segement Check Pass, There is some data to be sent
             self.archiver.load_archive(header['merge_key'], field_list)
             if field_list:
-                tar_file_data = [filter_column(line, field_list) for line in self.archiver.get_data()]
+                tar_file_data = filter_table_column(self.archiver.get_data(), field_list)
             else:
                 tar_file_data = self.archiver.get_data()
             return dispatcher.dispatch(header, None, tar_file_data, tar_topic_id, tar_table_id)

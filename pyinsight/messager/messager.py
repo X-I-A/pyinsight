@@ -9,8 +9,6 @@ class Messager(Worker):
     topic_loader   = 'insight-loader'
     topic_backlog  = 'insight-backlog'
 
-    def __init__(self): pass
-
     # Send Message
     def publish(self, topic_id, header, body): pass
 

@@ -23,7 +23,7 @@ __all__ = ['Merger', 'AgeMerger', 'NormalMerger']
 """
 
 class Merger(Action):
-    def _merge_data(self, start_seq, merge_key, merge_level):
+    def _merge_data(self, start_seq, merge_key, merge_level, merge_size):
         pass
 
     def _get_stream_by_merged_key(self, merge_key, min_merge_level):
@@ -64,7 +64,7 @@ class Merger(Action):
             to_del_list = del_list
         self.depositor.delete_documents(to_del_list)  # Only delete the no-merged items
 
-    def merge_data(self, topic_id, table_id, merge_key, merge_level):
+    def merge_data(self, topic_id, table_id, merge_key, merge_level, merge_size=MERGE_SIZE):
         self.depositor.set_current_topic_table(topic_id, table_id)
         header_ref = self.depositor.get_table_header()
         if not header_ref:
@@ -74,24 +74,30 @@ class Merger(Action):
             self.__class__ = AgeMerger
         else:
             self.__class__ = NormalMerger
-        self._merge_data(header_dict['start_seq'], merge_key, merge_level)
+        self._merge_data(header_dict['start_seq'], merge_key, merge_level, merge_size)
 
 
 class AgeMerger(Merger):
-    def _merge_data(self, start_seq, merge_key, merge_level):
+    def _merge_data(self, start_seq, merge_key, merge_level, merge_size=MERGE_SIZE):
         target_merge_level, del_list, merge_list = merge_level, list(), list()
         base_doc, start_age, end_age, data_list, total_size = None, 0, 0, list(), 0
         doc_dict = None
         for doc in self._get_stream_by_merged_key(merge_key, merge_level - 1):
             doc_dict = self.depositor.get_dict_from_ref(doc)
-            if doc_dict.get('merge_key','') == merge_key: # Start Controller initialization
+            # Start Point Condiction
+            if doc_dict.get('merge_key','') == merge_key:
                 target_merge_level = doc_dict['merge_level']
-                if doc_dict.get('merged_level', 0) < merge_level - 1:  # Need to merge level - 1 before continue
-                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1)
-                    doc_dict = self.depositor.get_dict_from_ref(doc) # Get the data again
+                # Level - 1 Not merged, shouldn't happen
+                if doc_dict.get('merged_level', 0) < merge_level - 1:
+                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
+                    doc_dict = self.depositor.get_dict_from_ref(doc)
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_age, end_age = doc_dict['segment_start_age'], doc_dict.get('end_age', doc_dict['age'])
-                    merge_list.append((doc, True, start_age, end_age, data_list))
+                    # Segment Related information should be updated
+                    if doc_dict.get('merged_level', 0) == merge_level - 1:
+                        base_doc = doc
+                    else:
+                        merge_list.append((doc, True, start_age, end_age, data_list))
                     continue
                 else:
                     base_doc = doc
@@ -111,7 +117,7 @@ class AgeMerger(Merger):
             # Case 1: Lower no-zero Level not merged yet
             if doc_dict['merge_level'] != 0 and doc_dict.get('merged_level', 0) < merge_level - 1:
                 if doc_dict.get('end_age', doc_dict['age']) == start_age - 1: # No GAP Merge and continue
-                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1)
+                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
                     doc_dict = self.depositor.get_dict_from_ref(doc) # Get the data again
                 elif doc_dict.get('end_age', doc_dict['age']) < start_age - 1: # GAP Detected, Quit
                     break
@@ -144,18 +150,18 @@ class AgeMerger(Merger):
                 if doc_dict['merge_status'] == 'merged':  # Reached a merged document, merge current one
                     merge_list.append((base_doc, True, start_age, end_age, data_list))
                     if doc != base_doc: # Add current doc to merge list
-                        merge_list.append((doc, True, doc_dict['age'],
-                                           doc_dict.get('end_age', doc_dict['age']), []))
                         start_age = doc_dict.get('segment_start_age', doc_dict['age'])
+                        merge_list.append((doc, True, start_age,
+                                           doc_dict.get('end_age', doc_dict['age']), []))
                     base_doc, end_age, data_list, total_size = None, start_age - 1, list(), 0
-                elif total_size >= MERGE_SIZE:  # Oversized, should merge and prepare a new merging process
+                elif total_size >= merge_size:  # Oversized, should merge and prepare a new merging process
                     merge_list.append((base_doc, True, start_age, end_age, data_list))
                     base_doc, end_age, data_list, total_size = None, start_age - 1, list(), 0
         # Final steps of the current merge
         if doc_dict and doc_dict.get('end_age', doc_dict['age']) == start_age - 1:  # Merge and safe delete
-            if base_doc and (total_size >= MERGE_SIZE or merge_list): # Too big or there is sth already merged
+            if base_doc and (total_size >= merge_size or merge_list): # Too big or there is sth already merged
                 merge_list.append((base_doc, True, start_age, end_age, data_list))
-            elif base_doc and total_size < MERGE_SIZE: # Merge the remain data
+            elif base_doc and total_size < merge_size: # Merge the remain data
                 merge_list.append((base_doc, False, start_age, end_age, data_list))
             # An isolated and clean all Merge and all Delete
             self._merge_and_delete_document(merge_level, merge_list, del_list)
@@ -165,20 +171,24 @@ class AgeMerger(Merger):
 
 
 class NormalMerger(Merger):
-    def _merge_data(self, start_seq, merge_key, merge_level):
+    def _merge_data(self, start_seq, merge_key, merge_level, merge_size=MERGE_SIZE):
         target_merge_level, del_list, merge_list = merge_level, list(), list()
         base_doc, start_time, end_time, data_list, total_size = None, '', '', list(), 0
         doc_dict = None
         for doc in self._get_stream_by_merged_key(merge_key, merge_level - 1):
             doc_dict = self.depositor.get_dict_from_ref(doc)
-            if doc_dict.get('merge_key','') == merge_key: # Start Controller initialization
+            if doc_dict.get('merge_key','') == merge_key:
                 target_merge_level = doc_dict['merge_level']
-                if doc_dict.get('merged_level', 0) < merge_level - 1:  # Need to merge level - 1 before continue
-                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1)
+                # Level - 1 Not merged, shouldn't happen
+                if doc_dict.get('merged_level', 0) < merge_level - 1:
+                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
                     doc_dict = self.depositor.get_dict_from_ref(doc) # Get the data again
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_time, end_time = doc_dict['segment_start_time'], doc_dict['deposit_at']
-                    merge_list.append((doc, True, start_time, end_time, data_list))
+                    if doc_dict.get('merged_level', 0) == merge_level - 1:
+                        base_doc = doc
+                    else:
+                        merge_list.append((doc, True, start_time, end_time, data_list))
                     continue
                 else:
                     base_doc = doc
@@ -197,7 +207,7 @@ class NormalMerger(Merger):
                 del_list.append(doc)  # Delete Every Mot merged memeber Node by default
             # Case 1: Lower no-zero Level not merged yet
             if doc_dict['merge_level'] != 0 and doc_dict.get('merged_level', 0) < merge_level - 1:
-                self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1)
+                self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
                 doc_dict = self.depositor.get_dict_from_ref(doc) # Get the data again
             # Case 2: Lower level is ready
             if doc_dict['merge_level'] == 0 or doc_dict.get('merged_level', 0) >= merge_level - 1:
@@ -219,13 +229,13 @@ class NormalMerger(Merger):
                         merge_list.append((doc, True, doc_dict.get('segment_start_time', doc_dict['deposit_at']),
                                            doc_dict['deposit_at'], []))
                     base_doc, start_time, end_time, data_list, total_size = None, '', '', list(), 0
-                elif total_size >= MERGE_SIZE:  # Oversized, should merge and prepare a new merging process
+                elif total_size >= merge_size:  # Oversized, should merge and prepare a new merging process
                     merge_list.append((base_doc, True, start_time, end_time, data_list))
                     base_doc, start_time, end_time, data_list, total_size = None, '', '', list(), 0
         # Final steps of the current merge
-        if base_doc and (total_size >= MERGE_SIZE or merge_list): # Too big or there is sth already merged
+        if base_doc and (total_size >= merge_size or merge_list): # Too big or there is sth already merged
             merge_list.append((base_doc, True, start_time, end_time, data_list))
-        elif base_doc and total_size < MERGE_SIZE: # Merge the remain data
+        elif base_doc and total_size < merge_size: # Merge the remain data
             merge_list.append((base_doc, False, start_time, end_time, data_list))
         # An isolated and clean all Merge and all Delete
         self._merge_and_delete_document(merge_level, merge_list, del_list)

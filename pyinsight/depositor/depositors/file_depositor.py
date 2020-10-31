@@ -4,16 +4,15 @@ from pyinsight import depositor
 from pyinsight.utils.core import get_current_timestamp, encoder, get_merge_level
 
 class FileDepositor(depositor.Depositor):
-    home_path = os.path.expanduser('~')
     data_encode = 'b64g'
     file_type = {'initial': '.initial', 'merged': '.merged', 'packaged': '.packaged'}
+    home_path = os.path.join(os.path.expanduser('~'), 'insight-depositor')
 
-    def __init__(self):
-        super().__init__()
-        self.home_path = os.path.join(self.home_path, 'insight-depositor')
-        for name, path in self.__dict__.items():
-            if name.endswith('_path') and not os.path.exists(path):
-                os.makedirs(path)
+    def init_topic(self, topic_id):
+        if not os.path.exists(self.home_path):
+            os.makedirs(self.home_path)
+        if not os.path.exists(os.path.join(self.home_path, topic_id)):
+            os.makedirs(os.path.join(self.home_path, topic_id))
 
     def _get_ref_from_filename(self, filename):
         file = filename.split('.')[0]
@@ -29,12 +28,20 @@ class FileDepositor(depositor.Depositor):
     def add_document(self, header, data) -> bool:
         self.set_current_topic_table(header['topic_id'], header['table_id'])
         content = header.copy()
-        content['data'] = data
+        # Encoder
+        if content['data_store'] == 'body':
+            if isinstance(data, list):
+                content['data'] = encoder(json.dumps(data), content['data_encode'], self.data_encode)
+            else:
+                content['data'] = encoder(data, content['data_encode'], self.data_encode)
+            content['data_encode'] = self.data_encode
+        else:
+            content['data'] = data
         # Case 1 : Header
         if content.get('age', '') == '1':
             content['age'] = 1
             filename = content['start_seq'] + '.header'
-            content['aged'] = content.get('aged', 'true') == 'true'
+            content['aged'] = content.get('aged', '') == 'true'
         # Case 2 : Aged Document
         elif 'age' in content:
             for key in [k for k in ['age', 'end_age', 'segment_start_age'] if k in content]:
@@ -139,12 +146,13 @@ class FileDepositor(depositor.Depositor):
             doc_key_start = base_doc_dict.get('start_time', base_doc_dict['deposit_at'])
             doc_key_end = base_doc_dict['deposit_at']
         # Case 1: Merged Member Nodes / Leader with same min_start = Do nothing
-        if base_doc_dict['merge_status'] == 'merged':
+        if base_doc_dict['merge_status'] == 'merged' and base_doc_dict['merged_level'] == merged_level:
             if not min_start or min_start == segment_key_start:
                 return data_operation_flag
         # Case 2: Leader nodes, need to update min_start
-        if min_start:
+        if base_doc_dict.get('merged_level', -1) != merged_level:
             base_doc_dict['merged_level'] = merged_level
+        if min_start:
             if aged_flag:
                 base_doc_dict['segment_start_age'] = min_start
             else:

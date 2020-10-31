@@ -1,7 +1,5 @@
 from .utils import *
 
-__version__ = "0.0.7"
-
 # Module Import
 from pyinsight import action
 from pyinsight import transfer
@@ -32,3 +30,4 @@ __all__ = action.__all__ \
         + merger.__all__ \
         + packager.__all__
 
+__version__ = "0.0.8"

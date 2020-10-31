@@ -3,9 +3,8 @@ import base64
 import gzip
 import logging
 import pyinsight.utils.core
-from pyinsight.worker import Worker
 
-class Translator(Worker):
+class Translator():
     # Simplest Case : No data spec change
     spec_list = ['x-i-a']
 

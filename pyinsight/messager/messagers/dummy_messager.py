@@ -4,13 +4,19 @@ from pyinsight import messager
 from pyinsight.utils.core import *
 
 class DummyMessager(messager.Messager):
-    home_path = os.path.expanduser('~')
-    def __init__(self):
-        super().__init__()
-        self.home_path = os.path.join(self.home_path, 'insight-messager')
-        for name, path in self.__dict__.items():
-            if name.endswith('_path') and not os.path.exists(path):
-                os.makedirs(path)
+    home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')
+
+    def init_topic(self, topic_id):
+        if not os.path.exists(self.home_path):
+            os.makedirs(self.home_path)
+        self.topic_id = topic_id
+        for key in dir(self):
+            if key.startswith('topic_'):
+                topic_name = getattr(self, key)
+                if isinstance(topic_name, str):
+                    path = os.path.join(self.home_path, getattr(self, key))
+                    if not os.path.exists(path):
+                        os.makedirs(path)
 
     # Publish Message
     def publish(self, topic_id, header, body):
@@ -33,13 +39,14 @@ class DummyMessager(messager.Messager):
         for msg_id in msg_list:
             with open(os.path.join(subscription_path, msg_id)) as f:
                 message = json.load(f)
+                if isinstance(message['data'], list):
+                    message['data'] = json.dumps(message.pop('data'))
                 message['id'] = msg_id
-                message['topic_id'] = subscription_id
             yield message
 
     # Translate Message Content
     def extract_message_content(self, message):
-        return message['header'], message['data'], message['id'], message['topic_id']
+        return message['header'], message['data'], message['id']
 
     # Acknowledge Reception
     def ack(self, subscription_id, msg_id):

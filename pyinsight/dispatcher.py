@@ -2,7 +2,7 @@ import json
 import gzip
 import base64
 from pyinsight.action import Action
-from pyinsight.utils.core import filter_column, filter_dnf
+from pyinsight.utils.core import filter_table_column, filter_table_dnf, get_data_chunk
 
 __all__ = ['Dispatcher']
 
@@ -64,58 +64,28 @@ class Dispatcher(Action):
                 if filter_list == [[[]]] and not field_list:
                     pass
                 elif filter_list == [[[]]]:
-                    tar_body_data = [filter_column(line, field_list) for line in src_body_data]
+                    tar_body_data = filter_table_column(src_body_data, field_list)
                 else:
-                    tar_body_data = [line for line in src_body_data if filter_dnf(line, filter_list)]
+                    tar_body_data = filter_table_dnf(src_body_data, filter_list)
                     if field_list:
-                        tar_body_data = [filter_column(line, field_list) for line in tar_body_data]
+                        tar_body_data = filter_table_column(tar_body_data, field_list)
                 return self._send_message(destination['topic_id'], tar_header, tar_body_data)
             # Case 3: File Message
             elif src_header['data_store'] == 'file':
                 if filter_list == [[[]]] and not field_list:
                     pass
                 elif filter_list == [[[]]]:
-                    tar_file_data = [filter_column(line, field_list) for line in src_file_data]
+                    tar_file_data = filter_table_column(src_file_data, field_list)
                 else:
-                    tar_file_data = [line for line in src_file_data if filter_dnf(line, filter_list)]
+                    tar_file_data = filter_table_dnf(src_file_data, filter_list)
                     if field_list:
-                        tar_file_data = [filter_column(line, field_list) for line in tar_file_data]
+                        tar_file_data = filter_table_column(tar_file_data, field_list)
                 # Case 3.1 Send content by message
                 if self.messager_only:
                     tar_header['data_store'] = 'body'
-                    # Case 3.1.1 : Aged Document => Must be cut age by age
-                    if 'age' in src_header:
-                        tar_file_data = sorted(tar_file_data, key=lambda line: line['_AGE'])
-                        tar_msg_data, start_age, cur_age = list(), 0, 0
-                        for line in tar_file_data:
-                            if start_age == 0:
-                                start_age = int(src_header['age'])
-                            if line['_AGE'] != cur_age and tar_msg_data:
-                                tar_header['age'] = start_age
-                                tar_header['end_age'] = line['_AGE'] - 1
-                                self._send_message(destination['topic_id'], tar_header, tar_msg_data)
-                                tar_msg_data = list()
-                                start_age = line['_AGE']
-                            tar_msg_data.append(line)
-                            cur_age = line['_AGE']
-                        tar_header['age'] = start_age
-                        tar_header['end_age'] = int(src_header.get('end_age', src_header['age']))
-                        self._send_message(destination['topic_id'], tar_header, tar_msg_data)
-                    # Case 3.2.2 : Normal Document
-                    else:
-                        tar_file_data = sorted(tar_file_data, key=lambda line: line['_SEQ'])
-                        tar_msg_data, cur_seq = list(), ''
-                        for line in tar_file_data:
-                            if not cur_seq:
-                                cur_seq = line['_SEQ']
-                            if line['_SEQ'] != cur_seq and tar_msg_data:
-                                tar_header['start_seq'] = cur_seq
-                                self._send_message(destination['topic_id'], tar_header, tar_msg_data)
-                                tar_msg_data = list()
-                            tar_msg_data.append(line)
-                            cur_seq = line['_SEQ']
-                        tar_header['start_seq'] = cur_seq
-                        self._send_message(destination['topic_id'], tar_header, tar_msg_data)
+                    for chunk_header in get_data_chunk(tar_file_data, tar_header):
+                        chunk_data = chunk_header.pop('data')
+                        self._send_message(destination['topic_id'], chunk_header, chunk_data)
                 # Case 3.2 Send content by file
                 else:
                     if 'age' in src_header:
