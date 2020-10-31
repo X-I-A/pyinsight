@@ -6,9 +6,9 @@ from pyinsight.utils.core import get_current_timestamp, encoder, get_merge_level
 class FileDepositor(depositor.Depositor):
     data_encode = 'b64g'
     file_type = {'initial': '.initial', 'merged': '.merged', 'packaged': '.packaged'}
+    home_path = os.path.join(os.path.expanduser('~'), 'insight-depositor')
 
     def init_topic(self, topic_id):
-        self.home_path = os.path.join(os.path.expanduser('~'), 'insight-depositor')
         if not os.path.exists(self.home_path):
             os.makedirs(self.home_path)
         if not os.path.exists(os.path.join(self.home_path, topic_id)):
@@ -30,7 +30,10 @@ class FileDepositor(depositor.Depositor):
         content = header.copy()
         # Encoder
         if content['data_store'] == 'body':
-            content['data'] = encoder(json.dumps(data), content['data_encode'], self.data_encode)
+            if isinstance(data, list):
+                content['data'] = encoder(json.dumps(data), content['data_encode'], self.data_encode)
+            else:
+                content['data'] = encoder(data, content['data_encode'], self.data_encode)
             content['data_encode'] = self.data_encode
         else:
             content['data'] = data
@@ -143,12 +146,13 @@ class FileDepositor(depositor.Depositor):
             doc_key_start = base_doc_dict.get('start_time', base_doc_dict['deposit_at'])
             doc_key_end = base_doc_dict['deposit_at']
         # Case 1: Merged Member Nodes / Leader with same min_start = Do nothing
-        if base_doc_dict['merge_status'] == 'merged':
+        if base_doc_dict['merge_status'] == 'merged' and base_doc_dict['merged_level'] == merged_level:
             if not min_start or min_start == segment_key_start:
                 return data_operation_flag
         # Case 2: Leader nodes, need to update min_start
-        if min_start:
+        if base_doc_dict.get('merged_level', -1) != merged_level:
             base_doc_dict['merged_level'] = merged_level
+        if min_start:
             if aged_flag:
                 base_doc_dict['segment_start_age'] = min_start
             else:

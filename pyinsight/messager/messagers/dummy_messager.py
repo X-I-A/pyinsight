@@ -39,8 +39,9 @@ class DummyMessager(messager.Messager):
         for msg_id in msg_list:
             with open(os.path.join(subscription_path, msg_id)) as f:
                 message = json.load(f)
+                if isinstance(message['data'], list):
+                    message['data'] = json.dumps(message.pop('data'))
                 message['id'] = msg_id
-                message['topic_id'] = subscription_id
             yield message
 
     # Translate Message Content

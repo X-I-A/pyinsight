@@ -10,11 +10,10 @@ __all__ = ['Packager']
 
 """Packaging Merged Documents (Messager, Depositor, Archiver and Dispatcher)"""
 class Packager(Action):
-
     def _get_record_from_doc_dict(self, doc_dict):
         return json.loads(encoder(doc_dict['data'], doc_dict['data_encode'], 'flat'))
 
-    def package_data(self, topic_id, table_id):
+    def package_data(self, topic_id, table_id, package_size=PACKAGE_SIZE):
         self.archiver.set_current_topic_table(topic_id, table_id)
         self.depositor.set_current_topic_table(topic_id, table_id)
         min_age, min_start_time, del_list, merge_list = 0, '', list(), list()
@@ -33,7 +32,7 @@ class Packager(Action):
             elif not min_start_time and 'start_time' in doc_dict:
                 min_start_time = doc_dict['start_time']
             self.archiver.add_data(self._get_record_from_doc_dict(doc_dict))
-            if self.archiver.workspace_size >= PACKAGE_SIZE:
+            if self.archiver.workspace_size >= package_size:
                 self.archiver.set_merge_key(doc_dict['merge_key'])
                 archive_path = self.archiver.archive_data()
                 if min_age:
@@ -54,8 +53,3 @@ class Packager(Action):
                 del_list = list()
             else:
                 del_list.append(doc_ref)
-
-# Some basic tests
-if __name__ == '__main__':
-    packager = Packager()
-    packager.package_data('npl-slt-01', 'NPL...BSEG')

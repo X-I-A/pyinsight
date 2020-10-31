@@ -91,7 +91,7 @@ class Receiver(Transfer):
         # 5. Check if the first level merge process should be triggered
         if header.get('merge_level', 0) > 0 and header.get('merge_status', '') != 'header':
             self.messager.trigger_merge(header['topic_id'], header['table_id'],
-                                        header['merge_key'], header['merge_level'])
+                                        header['merge_key'], 1)
         # 6. Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()

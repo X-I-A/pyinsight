@@ -7,20 +7,18 @@ from pyinsight import archiver
 from pyinsight.utils.core import filter_table_dnf
 
 class FileArchiver(archiver.Archiver):
-    home_path = os.path.expanduser('~')
+    home_path = os.path.join(os.path.expanduser('~'), 'insight-archiver')
     data_encode = 'gzip'
     data_format = 'record'
     data_store = 'file'
     supported_encodes = ['gzip']
     supported_formats = ['record']
 
-    def __init__(self):
-        super().__init__()
-        self.workspace = [[]] # List of record data type in FileArchiver
-        self.home_path = os.path.join(self.home_path, 'insight-archive')
-        for name, path in self.__dict__.items():
-            if name.endswith('_path') and not os.path.exists(path):
-                os.makedirs(path)
+    def init_topic(self, topic_id):
+        if not os.path.exists(self.home_path):
+            os.makedirs(self.home_path)
+        if not os.path.exists(os.path.join(self.home_path, topic_id)):
+            os.makedirs(os.path.join(self.home_path, topic_id))
 
     def _merge_workspace(self):
         self.workspace[:] = [[unit for item in self.workspace for unit in item]]
