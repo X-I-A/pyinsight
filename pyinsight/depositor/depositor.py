@@ -1,10 +1,10 @@
 from pyinsight.worker import Worker
 
 class Depositor(Worker):
-    topic_id = None
-    table_id = None
-
-    data_encode = ''
+    def __init__(self):
+        self.topic_id = None
+        self.table_id = None
+        self.data_encode = ''
 
     def set_current_topic_table(self, topic_id, table_id): pass
 

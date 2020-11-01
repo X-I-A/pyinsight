@@ -30,4 +30,4 @@ __all__ = action.__all__ \
         + merger.__all__ \
         + packager.__all__
 
-__version__ = "0.0.9"
+__version__ = "0.0.10"

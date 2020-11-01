@@ -3,11 +3,10 @@ import logging
 from pyinsight import translator
 
 class SapTranslator(translator.Translator):
-    spec_list = ['slt', 'ddic']
-    line_oper = dict()
-
     def __init__(self):
         super().__init__()
+        self.spec_list = ['slt', 'ddic']
+        self.line_oper = dict()
 
     def slt_line_translator(self, line: dict, age):
         line['_AGE'] = int(age)

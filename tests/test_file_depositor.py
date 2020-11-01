@@ -14,7 +14,7 @@ def add_aged_header(depositor):
         body = json.load(f).pop('columns')
         start_seq = get_current_timestamp()
         header = {'topic_id': 'test-001', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'aged': 'true', 'merge_level': 8, 'merge_status': 'header', 'merge_key': start_seq,
+                  'age': '1', 'aged': 'true', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         depositor.add_document(header, body)
 
@@ -23,7 +23,7 @@ def add_normal_header(depositor):
         body = json.load(f).pop('columns')
         start_seq = get_current_timestamp()
         header = {'topic_id': 'test-001', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'merge_level': 8, 'merge_status': 'header', 'merge_key': start_seq,
+                  'age': '1', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         depositor.add_document(header, body)
 
@@ -108,18 +108,16 @@ def test_aged_documents(depositor):
         doc_data = json.loads(encoder(doc_dict['data'], depositor.data_encode, 'flat'))
         assert len(doc_data) == 2000
         del_list.append(doc_ref)
-    # Update Document Test
-    for doc_ref in depositor.get_stream_by_sort_key(le_ge_key=base_key, reverse=True):
-        doc_dict = depositor.get_dict_from_ref(doc_ref)
-        doc_dict['status'] = 'initial'
-        depositor.update_document(doc_ref, doc_dict)
     # Min level / Merge Key Get test
     for doc_ref in depositor.get_stream_by_sort_key(reverse=True, min_merge_level=1):
         doc_dict = depositor.get_dict_from_ref(doc_ref)
         doc_ref2 = depositor.get_ref_by_merge_key(doc_dict['merge_key'])
-        assert doc_ref == doc_ref2
+        doc_ref2_dict = depositor.get_dict_from_ref(doc_ref2)
+        assert doc_dict['merge_key'] == doc_ref2_dict['merge_key']
     for doc_ref in depositor.get_stream_by_sort_key(le_ge_key=base_key, reverse=True, equal=False):
-        assert doc_ref == append_ref
+        doc_dict = depositor.get_dict_from_ref(doc_ref)
+        append_dict = depositor.get_dict_from_ref(append_ref)
+        assert doc_dict['merge_key'] == append_dict['merge_key']
         break
     # Delete All Documents
     for doc_ref in depositor.get_stream_by_sort_key(['initial'], le_ge_key=append_key):
@@ -164,7 +162,8 @@ def test_normal_documents(depositor):
     for doc_ref in depositor.get_stream_by_sort_key(reverse=True, min_merge_level=1):
         doc_dict = depositor.get_dict_from_ref(doc_ref)
         doc_ref2 = depositor.get_ref_by_merge_key(doc_dict['merge_key'])
-        assert doc_ref == doc_ref2
+        doc_ref2_dict = depositor.get_dict_from_ref(doc_ref2)
+        assert doc_dict['merge_key'] == doc_ref2_dict['merge_key']
     # Delete All Documents
     for doc_ref in depositor.get_stream_by_sort_key(['initial'], le_ge_key=append_key):
         doc_dict = depositor.get_dict_from_ref(doc_ref)
@@ -174,4 +173,3 @@ def test_normal_documents(depositor):
     depositor.delete_documents(del_list)
     header_ref = depositor.get_table_header()
     assert header_ref is None
-

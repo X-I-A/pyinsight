@@ -7,12 +7,15 @@ from pyinsight import archiver
 from pyinsight.utils.core import filter_table_dnf
 
 class FileArchiver(archiver.Archiver):
-    home_path = os.path.join(os.path.expanduser('~'), 'insight-archiver')
-    data_encode = 'gzip'
-    data_format = 'record'
-    data_store = 'file'
-    supported_encodes = ['gzip']
-    supported_formats = ['record']
+
+    def __init__(self):
+        super().__init__()
+        self.home_path = os.path.join(os.path.expanduser('~'), 'insight-archiver')
+        self.data_encode = 'gzip'
+        self.data_format = 'record'
+        self.data_store = 'file'
+        self.supported_encodes = ['gzip']
+        self.supported_formats = ['record']
 
     def init_topic(self, topic_id):
         if not os.path.exists(self.home_path):

@@ -4,30 +4,32 @@ import pytest
 from pyinsight.utils.core import get_current_timestamp, get_merge_level, encoder
 from pyinsight import Receiver, Merger, Packager, Cleaner
 
-def get_aged_header(start_seq):
+def get_normal_header():
+    start_seq = get_current_timestamp()
     with open(os.path.join('.', 'input', 'person_simple', 'schema.json'), 'r') as f:
         body = json.load(f).pop('columns')
-        header = {'topic_id': 'test-003', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'aged': 'true', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
+        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
+                  'age': '1', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         return header, body
 
-def get_age_document(start_seq, src_id):
+def get_normal_document(src_id):
     age = src_id + 1
     src_file = str(src_id).zfill(6) + '.json'
+    start_seq = get_current_timestamp()
     with open(os.path.join('.', 'input', 'person_simple', src_file), 'r') as f:
         body = json.load(f)
-        merge_key = str(int(start_seq) + age)
-        header = {'topic_id': 'test-003', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': str(age), 'merge_status': 'initial', 'merge_key': merge_key,
+        merge_key = start_seq
+        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
+                  'merge_status': 'initial', 'merge_key': merge_key,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         header['merge_level'] = get_merge_level(merge_key)
     return header, body
 
-def test_simple_aged_flow():
-    start_seq = get_current_timestamp()
+def test_simple_normal_flow():
+    # start_seq = get_current_timestamp()
     # start_seq = '20201031193904651613'
-    topic_id = 'test-003'
+    topic_id = 'test-004'
     r = Receiver()
     m = Merger()
     p = Packager()
@@ -36,12 +38,11 @@ def test_simple_aged_flow():
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
-
     # Step 1: Read Test data and send message
-    header, body = get_aged_header(start_seq)
+    header, body = get_normal_header()
     r.messager.publish(topic_id, header, body)
     for x in range(1, 51):
-        header, body = get_age_document(start_seq, x)
+        header, body = get_normal_document(x)
         r.messager.publish(topic_id, header, body)
 
     # Step 2: Receive Data
@@ -63,6 +64,7 @@ def test_simple_aged_flow():
         header, data, id = p.messager.extract_message_content(msg)
         p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
         p.messager.ack(p.messager.topic_packager, id)
+
 
     # Step 5: All data check
     total_size = 0

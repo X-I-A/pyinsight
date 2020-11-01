@@ -5,11 +5,8 @@ import logging
 import pyinsight.utils.core
 
 class Translator():
-    # Simplest Case : No data spec change
-    spec_list = ['x-i-a']
-
     def __init__(self):
-        pass
+        self.spec_list = list()
 
     @classmethod
     def encoder(cls, data, src_encode, tar_encode):

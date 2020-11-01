@@ -92,7 +92,8 @@ class TestInsightStandard():
 class TestMiscellaneous():
     def test_get_timestamp(self):
         last_t = ''
-        for x in range(10000):
+        for x in range(100):
+            time.sleep(0.000001)
             current_t = get_current_timestamp()
             assert last_t < current_t
             last_t = current_t

@@ -19,11 +19,6 @@ Translators : A list of customized translator to change the data_spec to xia
 """
 class Action():
     """Receive Receive Message and Put it into Depositor, and trigger Merger"""
-    messager = None # For trigger merger
-    depositor = None # For document deposits
-    archiver = None # For document archives
-    translators = dict() # For data specification translator
-
     logging.basicConfig(format='%(asctime)s - %(module)s - %(levelname)s - %(message)s')
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list(), log_level=logging.WARNING):
         if not messager:
@@ -51,6 +46,7 @@ class Action():
             raise InsightTypeError
 
         # Standard Translators
+        self.translators = dict()
         xia_trans = XIATranslator()
         sap_trans = SapTranslator()
         for std_trans in [xia_trans, sap_trans]:

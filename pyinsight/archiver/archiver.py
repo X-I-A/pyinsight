@@ -1,20 +1,19 @@
 from pyinsight.worker import Worker
 
 class Archiver(Worker):
-    topic_id = None
-    table_id = None
-    topic_path = None
-    table_path = None
-    merge_key = ''
-    workspace = list()
-    workspace_size = 0
-    data_encode = ''
-    data_format = ''
-    data_store = ''
-    supported_encodes = list()
-    supported_formats = list()
-
-    def __init__(self): pass
+    def __init__(self):
+        self.topic_id = None
+        self.table_id = None
+        self.topic_path = None
+        self.table_path = None
+        self.merge_key = ''
+        self.workspace = list()
+        self.workspace_size = 0
+        self.data_encode = ''
+        self.data_format = ''
+        self.data_store = ''
+        self.supported_encodes = list()
+        self.supported_formats = list()
 
     def set_merge_key(self, merge_key):
         self.merge_key = merge_key
