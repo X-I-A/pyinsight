@@ -84,13 +84,14 @@ class AgeMerger(Merger):
         doc_dict = None
         for doc in self._get_stream_by_merged_key(merge_key, merge_level - 1):
             doc_dict = self.depositor.get_dict_from_ref(doc)
-            # Start Point Condiction
+            # Start Point Condition
             if doc_dict.get('merge_key','') == merge_key:
                 target_merge_level = doc_dict['merge_level']
                 # Level - 1 Not merged, shouldn't happen
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
-                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
-                    doc_dict = self.depositor.get_dict_from_ref(doc)
+                    logging.warning('{}-{}: Lower level not ready yet'.format(self.depositor.topic_id,
+                                                                              self.depositor.table_id))
+                    return
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_age, end_age = doc_dict['segment_start_age'], doc_dict.get('end_age', doc_dict['age'])
                     # Segment Related information should be updated
@@ -142,10 +143,12 @@ class AgeMerger(Merger):
                         data_list.extend(self._get_record_from_doc_dict(doc_dict))
                         total_size += len(doc_dict['data'])
                 elif doc_dict.get('end_age', doc_dict['age']) > start_age - 1:  # Overlap - Shouldn't happen
-                    logging.warning('Overlapping at zero level nodes')
+                    logging.warning('{}-{}:Overlapping at zero level nodes'.format(self.depositor.topic_id,
+                                                                                   self.depositor.table_id))
                     continue
                 else:  # GAP detected, Abandon
-                    break
+                    logging.warning('{}-{}: GAP Detected'.format(self.depositor.topic_id, self.depositor.table_id))
+                    return
                 # Merge opertaions :
                 if doc_dict['merge_status'] == 'merged':  # Reached a merged document, merge current one
                     merge_list.append((base_doc, True, start_age, end_age, data_list))
@@ -181,8 +184,8 @@ class NormalMerger(Merger):
                 target_merge_level = doc_dict['merge_level']
                 # Level - 1 Not merged, shouldn't happen
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
-                    self._merge_data(start_seq, doc_dict['merge_key'], merge_level - 1, merge_size)
-                    doc_dict = self.depositor.get_dict_from_ref(doc) # Get the data again
+                    logging.warning('{}-{}: Lower level not ready yet'.format(self.depositor.topic_id,
+                                                                              self.depositor.table_id))
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_time, end_time = doc_dict['segment_start_time'], doc_dict['deposit_at']
                     if doc_dict.get('merged_level', 0) == merge_level - 1:
