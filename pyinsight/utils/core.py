@@ -133,7 +133,6 @@ def get_data_chunk(input_data: list, input_header: dict):
 
 # Miscellaneous
 def get_current_timestamp():
-    time.sleep(0.000001)
     return datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
 
 def get_sort_key_from_dict(doc_dict: dict):

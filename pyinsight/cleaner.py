@@ -32,3 +32,20 @@ class Cleaner(Action):
         if del_list:
             self.depositor.delete_documents(del_list)
             self.archiver.remove_archives(del_key_list)
+
+    def remove_all_data(self, topic_id, table_id):
+        self.archiver.set_current_topic_table(topic_id, table_id)
+        self.depositor.set_current_topic_table(topic_id, table_id)
+        del_list, del_key_list, counter = list(), list(), 0
+        for doc in self.depositor.get_stream_by_sort_key():
+            if counter >= 16:
+                self.depositor.delete_documents(del_list)
+                self.archiver.remove_archives(del_key_list)
+                del_list, del_key_list, counter = list(), list(), 0
+            doc_dict = self.depositor.get_dict_from_ref(doc)
+            del_list.append(doc)
+            if doc_dict['data_store'] == 'file':
+                del_key_list.append(doc_dict['merge_key'])
+        if del_list:
+            self.depositor.delete_documents(del_list)
+            self.archiver.remove_archives(del_key_list)

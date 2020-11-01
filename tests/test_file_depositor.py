@@ -14,7 +14,7 @@ def add_aged_header(depositor):
         body = json.load(f).pop('columns')
         start_seq = get_current_timestamp()
         header = {'topic_id': 'test-001', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'aged': 'true', 'merge_level': 8, 'merge_status': 'header', 'merge_key': start_seq,
+                  'age': '1', 'aged': 'true', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         depositor.add_document(header, body)
 
@@ -23,7 +23,7 @@ def add_normal_header(depositor):
         body = json.load(f).pop('columns')
         start_seq = get_current_timestamp()
         header = {'topic_id': 'test-001', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'merge_level': 8, 'merge_status': 'header', 'merge_key': start_seq,
+                  'age': '1', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         depositor.add_document(header, body)
 
