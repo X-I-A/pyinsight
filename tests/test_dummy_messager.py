@@ -8,6 +8,7 @@ def messager():
     yield messager
 
 def test_init_topic(messager):
+    messager.init_insight()
     messager.init_topic('test-001')
 
 def test_load_message(messager):

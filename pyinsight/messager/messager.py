@@ -9,6 +9,8 @@ class Messager(Worker):
         self.topic_packager = 'insight-packager'
         self.topic_loader = 'insight-loader'
         self.topic_backlog = 'insight-backlog'
+        self.insight_topics = [self.topic_cockpit, self.topic_cleaner, self.topic_merger,
+                               self.topic_packager, self.topic_loader, self.topic_backlog]
 
     # Send Message
     def publish(self, topic_id, header, body): pass

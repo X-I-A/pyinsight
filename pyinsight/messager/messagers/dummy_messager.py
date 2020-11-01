@@ -8,17 +8,20 @@ class DummyMessager(messager.Messager):
         super().__init__()
         self.home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')
 
+    def init_insight(self):
+        if not os.path.exists(self.home_path):
+            os.makedirs(self.home_path)
+        for topic_name in self.insight_topics:
+            path = os.path.join(self.home_path, topic_name)
+            if not os.path.exists(path):
+                os.makedirs(path)
+
     def init_topic(self, topic_id):
         if not os.path.exists(self.home_path):
             os.makedirs(self.home_path)
-        self.topic_id = topic_id
-        for key in dir(self):
-            if key.startswith('topic_'):
-                topic_name = getattr(self, key)
-                if isinstance(topic_name, str):
-                    path = os.path.join(self.home_path, getattr(self, key))
-                    if not os.path.exists(path):
-                        os.makedirs(path)
+        path = os.path.join(self.home_path, topic_id)
+        if not os.path.exists(path):
+            os.makedirs(path)
 
     # Publish Message
     def publish(self, topic_id, header, body):
