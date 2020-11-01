@@ -75,7 +75,8 @@ def filter_table(dict_list: list, field_list=list(), filter_list=list(list(list(
 def encoder(data, src_encode, tar_encode):
     if src_encode == tar_encode:
         return data
-    elif src_encode == 'gzip' and tar_encode == 'flat':
+    # blob and flat transformation
+    if src_encode == 'gzip' and tar_encode == 'flat':
         return gzip.decompress(data).decode()
     elif src_encode == 'b64g' and tar_encode == 'flat':
         return gzip.decompress(base64.b64decode(data.encode())).decode()

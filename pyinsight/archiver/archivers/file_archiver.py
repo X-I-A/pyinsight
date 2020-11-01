@@ -65,24 +65,14 @@ class FileArchiver(archiver.Archiver):
         with gzip.open(file_path) as f:
             return json.load(f)
 
-    def append_archive(self, append_merge_key, fields=None, filters=None):
-        field_list, filter_list = fields, filters
-        if not filters:
-            filter_list = [[[]]]
+    def append_archive(self, append_merge_key, fields=None):
+        field_list = fields
         with gzip.open(os.path.join(self.table_path, append_merge_key + '.gz')) as f:
             raw_data = f.read()
             table_data = json.loads(raw_data)
-
-            if filter_list == [[[]]] and not field_list:
-                table_size = len(raw_data)
-            elif filter_list == [[[]]]:
+            if field_list:
                 table_data = filter_table_column(table_data, field_list)
-                table_size = len(json.dumps(table_data))
-            else:
-                table_data = filter_table_dnf(table_data, filter_list)
-                if field_list:
-                    table_data = filter_table_column(table_data, field_list)
-                table_size = len(json.dumps(table_data))
+            table_size = len(json.dumps(table_data))
             self.workspace.append(table_data)
             self.workspace_size += table_size
 
