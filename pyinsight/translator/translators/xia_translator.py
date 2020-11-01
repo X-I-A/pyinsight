@@ -2,7 +2,9 @@ import json
 from pyinsight import translator
 
 class XIATranslator(translator.Translator):
-    spec_list = ['x-i-a']
+    def __init__(self):
+        super().__init__()
+        self.spec_list = ['x-i-a']
 
     def age_line_translator(self, line: dict, age):
         line['_AGE'] = age

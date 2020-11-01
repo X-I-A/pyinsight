@@ -4,9 +4,11 @@ from pyinsight import depositor
 from pyinsight.utils.core import get_current_timestamp, encoder, get_merge_level
 
 class FileDepositor(depositor.Depositor):
-    data_encode = 'b64g'
-    file_type = {'initial': '.initial', 'merged': '.merged', 'packaged': '.packaged'}
-    home_path = os.path.join(os.path.expanduser('~'), 'insight-depositor')
+    def __init__(self):
+        super().__init__()
+        self.data_encode = 'b64g'
+        self.file_type = {'initial': '.initial', 'merged': '.merged', 'packaged': '.packaged'}
+        self.home_path = os.path.join(os.path.expanduser('~'), 'insight-depositor')
 
     def init_topic(self, topic_id):
         if not os.path.exists(self.home_path):

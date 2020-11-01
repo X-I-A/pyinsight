@@ -4,7 +4,9 @@ from pyinsight import messager
 from pyinsight.utils.core import *
 
 class DummyMessager(messager.Messager):
-    home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')
+    def __init__(self):
+        super().__init__()
+        self.home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')
 
     def init_topic(self, topic_id):
         if not os.path.exists(self.home_path):

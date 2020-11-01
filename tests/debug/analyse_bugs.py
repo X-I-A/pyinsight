@@ -5,7 +5,8 @@ from pyinsight.utils.core import get_current_timestamp, get_merge_level, encoder
 from pyinsight import Receiver, Merger, Packager, Cleaner
 
 if __name__=='__main__':
-    topic_id = 'test-002'
+    topic_id = 'test-004'
+    table_id = 'person_simple'
     r = Receiver()
     m = Merger()
     p = Packager()
@@ -14,8 +15,10 @@ if __name__=='__main__':
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
-    r.depositor.set_current_topic_table('test-002', 'person_simple')
-    r.archiver.set_current_topic_table('test-002', 'person_simple')
+    p.package_data(topic_id, table_id, 2 ** 20)
+
+    r.depositor.set_current_topic_table(topic_id, table_id)
+    r.archiver.set_current_topic_table(topic_id, table_id)
     total_size = 0
     counter = dict()
     for doc_ref in r.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):

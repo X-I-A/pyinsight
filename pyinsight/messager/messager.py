@@ -1,13 +1,14 @@
 from pyinsight.worker import Worker
 
 class Messager(Worker):
-    blob_support = False
-    topic_cockpit  = 'insight-cockpit'
-    topic_cleaner  = 'insight-cleaner'
-    topic_merger   = 'insight-merger'
-    topic_packager = 'insight-packager'
-    topic_loader   = 'insight-loader'
-    topic_backlog  = 'insight-backlog'
+    def __init__(self):
+        self.blob_support = False
+        self.topic_cockpit = 'insight-cockpit'
+        self.topic_cleaner = 'insight-cleaner'
+        self.topic_merger = 'insight-merger'
+        self.topic_packager = 'insight-packager'
+        self.topic_loader = 'insight-loader'
+        self.topic_backlog = 'insight-backlog'
 
     # Send Message
     def publish(self, topic_id, header, body): pass

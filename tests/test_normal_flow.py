@@ -8,7 +8,7 @@ def get_normal_header():
     start_seq = get_current_timestamp()
     with open(os.path.join('.', 'input', 'person_simple', 'schema.json'), 'r') as f:
         body = json.load(f).pop('columns')
-        header = {'topic_id': 'test-002', 'table_id': 'person_simple', 'start_seq': start_seq,
+        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
                   'age': '1', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         return header, body
@@ -20,7 +20,7 @@ def get_normal_document(src_id):
     with open(os.path.join('.', 'input', 'person_simple', src_file), 'r') as f:
         body = json.load(f)
         merge_key = start_seq
-        header = {'topic_id': 'test-002', 'table_id': 'person_simple', 'start_seq': start_seq,
+        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
                   'merge_status': 'initial', 'merge_key': merge_key,
                   'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
         header['merge_level'] = get_merge_level(merge_key)
@@ -29,7 +29,7 @@ def get_normal_document(src_id):
 def test_simple_normal_flow():
     # start_seq = get_current_timestamp()
     # start_seq = '20201031193904651613'
-    topic_id = 'test-002'
+    topic_id = 'test-004'
     r = Receiver()
     m = Merger()
     p = Packager()
@@ -37,7 +37,6 @@ def test_simple_normal_flow():
     r.messager.init_topic(topic_id)
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
-
 
     # Step 1: Read Test data and send message
     header, body = get_normal_header()
@@ -66,6 +65,7 @@ def test_simple_normal_flow():
         p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
         p.messager.ack(p.messager.topic_packager, id)
 
+
     # Step 5: All data check
     total_size = 0
     for doc_ref in r.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
@@ -79,3 +79,6 @@ def test_simple_normal_flow():
 
     # Step 6: Clean Test Set
     c.remove_all_data(header['topic_id'], header['table_id'])
+    for msg in c.messager.pull(c.messager.topic_cleaner):
+        header, data, id = c.messager.extract_message_content(msg)
+        c.messager.ack(c.messager.topic_cleaner, id)
