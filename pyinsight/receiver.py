@@ -33,7 +33,7 @@ class Receiver(Transfer):
         else:
             self.messager.trigger_clean(header['topic_id'], header['table_id'], header['start_seq'])
             header['merge_status'] = 'header'
-            header['merge_level'] = 8
+            header['merge_level'] = 9
         # 2. Translation
         # Case 1: data_spec found and translator found
         if 'data_spec' in header:

@@ -163,7 +163,7 @@ class FileDepositor(depositor.Depositor):
         elif base_doc_dict['merge_status'] == 'merged':
             pass
         else:
-            base_doc_dict['data'] = encoder(json.dumps(data_list), 'flat', 'b64g')
+            base_doc_dict['data'] = encoder(json.dumps(data_list), 'flat', self.data_encode)
             data_operation_flag = True
             if aged_flag:
                 base_doc_dict.update({'age': start_key, 'end_age': end_key})
