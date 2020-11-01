@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import pytest
 from pyinsight.utils.core import get_current_timestamp, get_merge_level, encoder
 from pyinsight import Receiver, Merger, Packager, Cleaner
@@ -51,6 +52,76 @@ def test_simple_aged_flow():
         r.messager.ack(topic_id, id)
 
     # Step 3: Merge Data
+    for x in range(18):
+        for msg in r.messager.pull(m.messager.topic_merger):
+            header, data, id = m.messager.extract_message_content(msg)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.messager.ack(m.messager.topic_merger, id)
+
+    # Step 4: Package Data
+    p.messager.trigger_package(header['topic_id'], header['table_id'])
+    for msg in p.messager.pull(p.messager.topic_packager):
+        header, data, id = p.messager.extract_message_content(msg)
+        p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
+        p.messager.ack(p.messager.topic_packager, id)
+
+    # Step 5: All data check
+    total_size = 0
+    for doc_ref in r.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
+        doc_dict = r.depositor.get_dict_from_ref(doc_ref)
+        if doc_dict['data_store'] == 'file':
+            r.archiver.load_archive(doc_dict['merge_key'])
+            total_size += len(r.archiver.get_data())
+        else:
+            total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
+    assert total_size == 50000
+
+    # Step 6: Clean Test Set
+    c.remove_all_data(header['topic_id'], header['table_id'])
+    for msg in c.messager.pull(c.messager.topic_cleaner):
+        header, data, id = c.messager.extract_message_content(msg)
+        c.messager.ack(c.messager.topic_cleaner, id)
+
+def test_gapped_aged_flow():
+    start_seq = get_current_timestamp()
+    # start_seq = '20201031193904651613'
+    topic_id = 'test-003'
+    r = Receiver()
+    m = Merger()
+    p = Packager()
+    c = Cleaner()
+    r.messager.init_topic(topic_id)
+    r.depositor.init_topic(topic_id)
+    r.archiver.init_topic(topic_id)
+
+    # Step 1: Read Test data and send message
+    header, body = get_aged_header(start_seq)
+    r.messager.publish(topic_id, header, body)
+    for x in range(1, 51):
+        header, body = get_age_document(start_seq, x)
+        r.messager.publish(topic_id, header, body)
+
+    # Step 2.1: Receive Data
+    for msg in r.messager.pull(topic_id):
+        header, body, id = r.messager.extract_message_content(msg)
+        if int(header['age']) % 8 != 0:
+            r.receive_data(header, body)
+            r.messager.ack(topic_id, id)
+
+    # Step 2.2: Merge Data
+    for x in range(18):
+        for msg in r.messager.pull(m.messager.topic_merger):
+            header, data, id = m.messager.extract_message_content(msg)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+
+    # Step 3.1: Receive Data
+    for msg in r.messager.pull(topic_id):
+        header, body, id = r.messager.extract_message_content(msg)
+        if int(header['age']) % 8 == 0:
+            r.receive_data(header, body)
+            r.messager.ack(topic_id, id)
+
+    # Step 3.2: Merge Data
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)

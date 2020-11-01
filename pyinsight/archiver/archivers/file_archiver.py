@@ -4,7 +4,7 @@ import shutil
 import gzip
 import logging
 from pyinsight import archiver
-from pyinsight.utils.core import filter_table_dnf
+from pyinsight.utils.core import filter_table_dnf, filter_table_column
 
 class FileArchiver(archiver.Archiver):
 
@@ -76,12 +76,12 @@ class FileArchiver(archiver.Archiver):
             if filter_list == [[[]]] and not field_list:
                 table_size = len(raw_data)
             elif filter_list == [[[]]]:
-                table_data = [filter_column(line, field_list) for line in table_data]
+                table_data = filter_table_column(table_data, field_list)
                 table_size = len(json.dumps(table_data))
             else:
                 table_data = filter_table_dnf(table_data, filter_list)
                 if field_list:
-                    table_data = [filter_column(line, field_list) for line in table_data]
+                    table_data = filter_table_column(table_data, field_list)
                 table_size = len(json.dumps(table_data))
             self.workspace.append(table_data)
             self.workspace_size += table_size
