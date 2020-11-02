@@ -35,7 +35,7 @@ class XIATranslator(translator.Translator):
             return data
         # Case 3: Standard Aged Document
         elif 'age' in header:
-            return [self.age_line_translator(line, header['age']) for line in data]
+            return [self.age_line_translator(line, int(header['age'])) for line in data]
         # Case 4: Stand Normal Documnet
         elif 'start_seq' in header:
             return [self.normal_line_translator(line, header['start_seq']) for line in data]

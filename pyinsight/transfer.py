@@ -3,13 +3,15 @@ from pyinsight.action import Action
 from pyinsight.dispatcher import Dispatcher
 from pyinsight.messager import Messager
 from pyinsight.archiver import Archiver
-from pyinsight.utils.core import filter_table_column
+from pyinsight.utils.core import filter_table_column, get_fields_from_filter
 
 __all__ = ['Transfer']
 
 class Transfer(Action):
-    client_dict = dict() # {client_id: dispatcher}
-    subscription_dict = dict() # {tuple(topic_id, table_id) : set{client_id1, client_id2}}
+    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+        self.client_dict = dict() # {client_id: dispatcher}
+        self.subscription_dict = dict() # {tuple(topic_id, table_id) : set{client_id1, client_id2}}
 
     def upsert_client_config(self, client_id, subscription, messager=None, archiver=None):
         if messager and not isinstance(messager, Messager):
@@ -47,6 +49,9 @@ class Transfer(Action):
                 break
             else:
                 field_set |= set(destination['fields'])
+                if destination.get('filters', None):
+                    filter_fields = get_fields_from_filter(destination['filters'])
+                    field_set |= set(filter_fields)
         field_list = list(field_set)
         # Header Data, No modification at all
         if int(header.get('age', 0)) == 1:
@@ -58,17 +63,15 @@ class Transfer(Action):
             else:
                 tar_body_data = body_data
             return dispatcher.dispatch(header, tar_body_data, None, tar_topic_id, tar_table_id)
-        # File Data Type => Check
+        # File Data Type
         elif header['data_store'] == 'file':
+            # Check if the sennd is necessary
             if 'portait' in header:
                 for f, description in header['portait'].items():
                     pass
             # Segement Check Pass, There is some data to be sent
             self.archiver.load_archive(header['merge_key'], field_list)
-            if field_list:
-                tar_file_data = filter_table_column(self.archiver.get_data(), field_list)
-            else:
-                tar_file_data = self.archiver.get_data()
+            tar_file_data = self.archiver.get_data()
             return dispatcher.dispatch(header, None, tar_file_data, tar_topic_id, tar_table_id)
 
 

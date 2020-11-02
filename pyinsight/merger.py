@@ -64,7 +64,7 @@ class Merger(Action):
             to_del_list = del_list
         self.depositor.delete_documents(to_del_list)  # Only delete the no-merged items
 
-    def merge_data(self, topic_id, table_id, merge_key, merge_level, merge_size=MERGE_SIZE):
+    def merge_data(self, topic_id, table_id, merge_key, merge_level):
         self.depositor.set_current_topic_table(topic_id, table_id)
         header_ref = self.depositor.get_table_header()
         if not header_ref:
@@ -74,7 +74,7 @@ class Merger(Action):
             self.__class__ = AgeMerger
         else:
             self.__class__ = NormalMerger
-        self._merge_data(header_dict['start_seq'], merge_key, merge_level, merge_size)
+        self._merge_data(header_dict['start_seq'], merge_key, merge_level, self.merge_size)
 
 
 class AgeMerger(Merger):

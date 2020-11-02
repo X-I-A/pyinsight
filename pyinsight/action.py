@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import pyinsight
+from pyinsight.utils.core import MERGE_SIZE, PACKAGE_SIZE
 from pyinsight.utils.exceptions import *
 from pyinsight.messager.messagers import DummyMessager
 from pyinsight.depositor.depositors import FileDepositor
@@ -20,7 +21,10 @@ Translators : A list of customized translator to change the data_spec to xia
 class Action():
     """Receive Receive Message and Put it into Depositor, and trigger Merger"""
     logging.basicConfig(format='%(asctime)s - %(module)s - %(levelname)s - %(message)s')
-    def __init__(self, messager=None, depositor=None, archiver=None, translators=list(), log_level=logging.WARNING):
+    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+        self.merge_size = MERGE_SIZE
+        self.package_size = PACKAGE_SIZE
+
         if not messager:
             self.messager = DummyMessager()
         elif isinstance(messager, pyinsight.messager.Messager):
@@ -60,3 +64,9 @@ class Action():
             else:
                 logging.error("The Choosen Translator has a wrong Type, Initialization Failed")
                 raise InsightTypeError
+
+    def set_merge_size(self, merge_size):
+        self.merge_size = merge_size
+
+    def set_package_size(self, package_size):
+        self.package_size = package_size

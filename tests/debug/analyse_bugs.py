@@ -15,7 +15,7 @@ if __name__=='__main__':
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
-    p.package_data(topic_id, table_id, 2 ** 20)
+    p.package_data(topic_id, table_id)
 
     r.depositor.set_current_topic_table(topic_id, table_id)
     r.archiver.set_current_topic_table(topic_id, table_id)

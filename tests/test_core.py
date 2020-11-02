@@ -1,5 +1,6 @@
 import os
 import json
+import gzip
 import pytest
 from pyinsight.utils.core import *
 
@@ -87,7 +88,30 @@ class TestEncoder():
         assert gzip_data == encoder(b64g_data, 'b64g', 'gzip')
 
 class TestInsightStandard():
-    pass
+    def test_aged_data_chunk(self):
+        header_path = os.path.join('.', 'input', 'insight_formats', 'aged_package.packaged')
+        data_path = os.path.join('.', 'input', 'insight_formats', 'aged_package.gz')
+        with open(header_path) as f:
+            header = json.load(f)
+            header.pop('data')
+        with gzip.open(data_path) as f:
+            data = json.load(f)
+        for content in get_data_chunk(data, header, 2 ** 10):
+            print(content['age'])
+            print(content['end_age'])
+            print(len(content['data']))
+
+    def test_normal_data_chunk(self):
+        header_path = os.path.join('.', 'input', 'insight_formats', 'normal_package.packaged')
+        data_path = os.path.join('.', 'input', 'insight_formats', 'normal_package.gz')
+        with open(header_path) as f:
+            header = json.load(f)
+            header.pop('data')
+        with gzip.open(data_path) as f:
+            data = json.load(f)
+        for content in get_data_chunk(data, header, 2 ** 15):
+            print(content['start_seq'])
+            print(len(content['data']))
 
 class TestMiscellaneous():
     def test_get_timestamp(self):
@@ -100,5 +124,5 @@ class TestMiscellaneous():
 
 
 if __name__=='__main__':
-    fi = TestFilters()
-    fi.test_remove_null()
+    a = TestInsightStandard()
+    a.test_normal_data_chunk()

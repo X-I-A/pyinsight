@@ -15,7 +15,6 @@ def get_normal_header():
         return header, body
 
 def get_normal_document(src_id):
-    age = src_id + 1
     src_file = str(src_id).zfill(6) + '.json'
     start_seq = get_current_timestamp()
     with open(os.path.join('.', 'input', 'person_simple', src_file), 'r') as f:
@@ -39,6 +38,9 @@ def test_simple_normal_flow():
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
+    m.set_merge_size(2 ** 12)
+    p.set_package_size(2 ** 20)
+
     # Step 1: Read Test data and send message
     header, body = get_normal_header()
     r.messager.publish(topic_id, header, body)
@@ -56,14 +58,14 @@ def test_simple_normal_flow():
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
     p.messager.trigger_package(header['topic_id'], header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
-        p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
+        p.package_data(header['topic_id'], header['table_id'])
         p.messager.ack(p.messager.topic_packager, id)
 
 
@@ -96,6 +98,9 @@ def test_gapped_normal_flow():
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
+    m.set_merge_size(2 ** 12)
+    p.set_package_size(2 ** 20)
+
     # Step 1: Read Test data and send message
     header, body = get_normal_header()
     r.messager.publish(topic_id, header, body)
@@ -114,7 +119,7 @@ def test_gapped_normal_flow():
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
 
     # Step 3.1: Receive Data
     for msg in r.messager.pull(topic_id):
@@ -123,20 +128,18 @@ def test_gapped_normal_flow():
             r.receive_data(header, body)
             r.messager.ack(topic_id, id)
 
-    time.sleep(10)
-
     # Step 3.2: Merge Data
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
     p.messager.trigger_package(header['topic_id'], header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
-        p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
+        p.package_data(header['topic_id'], header['table_id'])
         p.messager.ack(p.messager.topic_packager, id)
 
 

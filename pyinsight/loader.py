@@ -25,7 +25,9 @@ Best Pratice: Deploy un loader per client_id
 """
 
 class Loader(Transfer):
-    dispatcher = None
+    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+        self.dispatcher = None
 
     # Head Load: Simple Sent
     def _header_load(self, header_dict, tar_topic_id, tar_table_id):
@@ -103,6 +105,7 @@ class Loader(Transfer):
         client_set = self.subscription_dict.get((src_topic_id, src_table_id), [])
         if load_config['client_id'] in client_set:
             self.dispatcher = self.client_dict.get(load_config['client_id'], None)
+            self.dispatcher.set_merge_size(self.merge_size)
         if not self.dispatcher:
             logging.warning("{}-{}: Source Table / Topic is not subscribed".format(src_topic_id, src_table_id))
             return

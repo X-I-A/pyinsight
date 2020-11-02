@@ -25,6 +25,13 @@ def get_age_document(start_seq, src_id):
         header['merge_level'] = get_merge_level(merge_key)
     return header, body
 
+def get_age_file_document():
+    with open(os.path.join('.', 'input', 'insight_formats', 'aged_package.packaged'), 'r') as f:
+        header = json.load(f)
+        header.pop('data')
+        body = os.path.join('.', 'input', 'insight_formats', 'aged_package.gz')
+        return header, body
+
 def test_simple_aged_flow():
     start_seq = get_current_timestamp()
     # start_seq = '20201031193904651613'
@@ -37,6 +44,8 @@ def test_simple_aged_flow():
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
 
+    m.set_merge_size(2 ** 12)
+    p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
     header, body = get_aged_header(start_seq)
@@ -55,14 +64,14 @@ def test_simple_aged_flow():
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
     p.messager.trigger_package(header['topic_id'], header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
-        p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
+        p.package_data(header['topic_id'], header['table_id'])
         p.messager.ack(p.messager.topic_packager, id)
 
     # Step 5: All data check
@@ -84,7 +93,6 @@ def test_simple_aged_flow():
 
 def test_gapped_aged_flow():
     start_seq = get_current_timestamp()
-    # start_seq = '20201031193904651613'
     topic_id = 'test-003'
     r = Receiver()
     m = Merger()
@@ -93,6 +101,9 @@ def test_gapped_aged_flow():
     r.messager.init_topic(topic_id)
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
+
+    m.set_merge_size(2 ** 12)
+    p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
     header, body = get_aged_header(start_seq)
@@ -112,7 +123,7 @@ def test_gapped_aged_flow():
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
 
     # Step 3.1: Receive Data
     for msg in r.messager.pull(topic_id):
@@ -125,14 +136,14 @@ def test_gapped_aged_flow():
     for x in range(18):
         for msg in r.messager.pull(m.messager.topic_merger):
             header, data, id = m.messager.extract_message_content(msg)
-            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']), 2 ** 12)
+            m.merge_data(header['topic_id'], header['table_id'], header['merge_key'], int(header['merge_level']))
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
     p.messager.trigger_package(header['topic_id'], header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
-        p.package_data(header['topic_id'], header['table_id'], 2 ** 20)
+        p.package_data(header['topic_id'], header['table_id'])
         p.messager.ack(p.messager.topic_packager, id)
 
     # Step 5: All data check
@@ -151,3 +162,41 @@ def test_gapped_aged_flow():
     for msg in c.messager.pull(c.messager.topic_cleaner):
         header, data, id = c.messager.extract_message_content(msg)
         c.messager.ack(c.messager.topic_cleaner, id)
+
+def test_dispatch_aged_flow():
+    start_seq = get_current_timestamp()
+    topic_id = 'test-003'
+    r = Receiver()
+    m = Merger()
+    p = Packager()
+    c = Cleaner()
+    r.messager.init_topic(topic_id)
+    r.depositor.init_topic(topic_id)
+    r.archiver.init_topic(topic_id)
+    # Client Configurations
+    sub1 = {('test-003', 'person_simple'):[{'topic_id':'clnt001', 'table_id':'tall_man',
+                                            'fields': ['id', 'first_name', 'last_name', 'email'],
+                                            'filters': [[["gender", "=", "Male"], ["height", ">=", 175]]]}]}
+    sub2 = {('test-003', 'person_simple'):[{'topic_id':'clnt002', 'table_id':'tall_woman',
+                                            'fields': ['id', 'first_name', 'last_name', 'email'],
+                                            'filters': [[["gender", "=", "Female"], ["height", ">=", 165]]]}]}
+    r.upsert_client_config('clnt001', sub1)
+    r.upsert_client_config('clnt002', sub2)
+    r.set_merge_size(2 ** 12)
+
+    # Step 1: Read Test data and send message
+    header, body = get_aged_header(start_seq)
+    r.messager.publish(topic_id, header, body)
+    for x in range(1, 3):
+        header, body = get_age_document(start_seq, x)
+        r.messager.publish(topic_id, header, body)
+    header, body = get_age_file_document()
+    r.messager.publish(topic_id, header, body)
+
+    # Step 2: Receive Message Data
+    for msg in r.messager.pull(topic_id):
+        header, body, id = r.messager.extract_message_content(msg)
+        r.receive_data(header, body)
+        r.messager.ack(topic_id, id)
+
+    # Step 3: Receive File Data
