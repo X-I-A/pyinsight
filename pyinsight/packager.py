@@ -13,7 +13,8 @@ class Packager(Action):
     def _get_record_from_doc_dict(self, doc_dict):
         return json.loads(encoder(doc_dict['data'], doc_dict['data_encode'], 'flat'))
 
-    def package_data(self, topic_id, table_id, package_size=PACKAGE_SIZE):
+    def package_data(self, topic_id, table_id):
+        package_size = self.package_size
         self.archiver.set_current_topic_table(topic_id, table_id)
         self.depositor.set_current_topic_table(topic_id, table_id)
         min_age, min_start_time, del_list, merge_list = 0, '', list(), list()

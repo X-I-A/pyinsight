@@ -57,14 +57,14 @@ class Receiver(Transfer):
             self.archiver.set_merge_key(header['merge_key'])
             # Step 1: Get the dict data of 'x-i-a' specification
             if header['data_spec'] == 'x-i-a':
-                raw_data = self.archiver.read_data_from_file(data)
+                raw_data = self.archiver.read_data_from_file(header['data_encode'], header['data_format'], data)
             else:
                 raw_data = active_translator.get_archive_data(self.archiver.read_data_from_file(data), header)
             # Step 2: Cut the data and reload the receive data in "Depositor Mode"
             header['data_spec'] = 'x-i-a'
             header['data_store'] = 'body'
             header['data_encode'] = 'flat'
-            for chunk_header in get_data_chunk(raw_data, header):
+            for chunk_header in get_data_chunk(raw_data, header, self.merge_size):
                 chunk_data = chunk_header.pop('data')
                 self.receive_data(chunk_header, chunk_data)
             # Task is splitted, no need to continue for the current task
@@ -79,6 +79,7 @@ class Receiver(Transfer):
         for client_id in list(client_set):
             dispatcher = self.client_dict.get(client_id, None)
             if dispatcher and isinstance(dispatcher, pyinsight.dispatcher.Dispatcher):
+                dispatcher.set_merge_size(self.merge_size)
                 cur_handler = threading.Thread(target=self.dispatch_data,
                                                args=(dispatcher, header, dispatch_body_data))
                 cur_handler.start()

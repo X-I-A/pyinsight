@@ -2,7 +2,7 @@ import json
 import gzip
 import base64
 from pyinsight.action import Action
-from pyinsight.utils.core import filter_table_column, filter_table_dnf, get_data_chunk
+from pyinsight.utils.core import filter_table, get_data_chunk, X_I_HEADER
 
 __all__ = ['Dispatcher']
 
@@ -14,10 +14,10 @@ __all__ = ['Dispatcher']
 * Destinations: topic_id, table_id, fields, filters (NDF)
 """
 class Dispatcher(Action):
-    X_I_HEADER = ['start_seq', 'aged', 'age', 'end_age', 'segment_start_age',
-                  'data_encode', 'data_format', 'data_store', 'data_spec']
-    messager_only = False
-    subscription = dict()
+    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+        self.messager_only = False
+        self.subscription = dict()
 
     # Send different message based on messager blob support mode
     def _send_message(self, topic_id, header, data):
@@ -46,44 +46,26 @@ class Dispatcher(Action):
             # Build Header
             tar_header = {'table_id': destination['table_id']}
             tar_body_data = src_body_data
-            tar_file_data = src_file_data
-            for key in [k for k in self.X_I_HEADER if k in src_header]:
+            for key in [k for k in X_I_HEADER if k in src_header]:
                 tar_header[key] = src_header[key]
-            # Build Data
-            if destination.get('fields', None):
-                field_list = destination['fields']
-                field_list.extend(['_AGE', '_SEQ', '_NO', '_OP'])
-            else:
-                field_list = None
-            filter_list = destination.get('filters', [[[]]])
+            tar_header.update({'topic_id': destination['topic_id'], 'table_id': destination['table_id']})
+            # Build Data Filters
+            field_list = destination.get('fields', None)
+            filter_list = destination.get('filters', None)
             # Case 1: Header => No modification
             if int(src_header.get('age', 0)) == 1:
                 return self._send_message(destination['topic_id'], tar_header, tar_body_data)
             # Case 2: Body Message Send Only
             elif src_header['data_store'] == 'body':
-                if filter_list == [[[]]] and not field_list:
-                    pass
-                elif filter_list == [[[]]]:
-                    tar_body_data = filter_table_column(src_body_data, field_list)
-                else:
-                    tar_body_data = filter_table_dnf(src_body_data, filter_list)
-                    if field_list:
-                        tar_body_data = filter_table_column(tar_body_data, field_list)
+                tar_body_data = filter_table(src_body_data, field_list, filter_list)
                 return self._send_message(destination['topic_id'], tar_header, tar_body_data)
             # Case 3: File Message
             elif src_header['data_store'] == 'file':
-                if filter_list == [[[]]] and not field_list:
-                    pass
-                elif filter_list == [[[]]]:
-                    tar_file_data = filter_table_column(src_file_data, field_list)
-                else:
-                    tar_file_data = filter_table_dnf(src_file_data, filter_list)
-                    if field_list:
-                        tar_file_data = filter_table_column(tar_file_data, field_list)
+                tar_file_data = filter_table(src_file_data, field_list, filter_list)
                 # Case 3.1 Send content by message
                 if self.messager_only:
                     tar_header['data_store'] = 'body'
-                    for chunk_header in get_data_chunk(tar_file_data, tar_header):
+                    for chunk_header in get_data_chunk(tar_file_data, tar_header, self.merge_size):
                         chunk_data = chunk_header.pop('data')
                         self._send_message(destination['topic_id'], chunk_header, chunk_data)
                 # Case 3.2 Send content by file

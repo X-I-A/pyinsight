@@ -4,7 +4,7 @@ import shutil
 import gzip
 import logging
 from pyinsight import archiver
-from pyinsight.utils.core import filter_table_dnf, filter_table_column
+from pyinsight.utils.core import filter_table_column
 
 class FileArchiver(archiver.Archiver):
 
