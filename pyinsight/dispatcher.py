@@ -48,6 +48,7 @@ class Dispatcher(Action):
             tar_body_data = src_body_data
             for key in [k for k in X_I_HEADER if k in src_header]:
                 tar_header[key] = src_header[key]
+            tar_header.update({'topic_id': destination['topic_id'], 'table_id': destination['table_id']})
             # Build Data Filters
             field_list = destination.get('fields', None)
             filter_list = destination.get('filters', None)

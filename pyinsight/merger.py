@@ -87,7 +87,7 @@ class AgeMerger(Merger):
             # Start Point Condition
             if doc_dict.get('merge_key','') == merge_key:
                 target_merge_level = doc_dict['merge_level']
-                # Level - 1 Not merged, shouldn't happen
+                # Level - 1 Not merged
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
                     logging.warning('{}-{}: Lower level not ready yet'.format(self.depositor.topic_id,
                                                                               self.depositor.table_id))
@@ -182,10 +182,11 @@ class NormalMerger(Merger):
             doc_dict = self.depositor.get_dict_from_ref(doc)
             if doc_dict.get('merge_key','') == merge_key:
                 target_merge_level = doc_dict['merge_level']
-                # Level - 1 Not merged, shouldn't happen
+                # Level - 1 Not merged
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
                     logging.warning('{}-{}: Lower level not ready yet'.format(self.depositor.topic_id,
                                                                               self.depositor.table_id))
+                    return
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_time, end_time = doc_dict['segment_start_time'], doc_dict['deposit_at']
                     if doc_dict.get('merged_level', 0) == merge_level - 1:

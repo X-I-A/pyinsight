@@ -3,7 +3,7 @@ import json
 import time
 import pytest
 from pyinsight.utils.core import get_current_timestamp, get_merge_level, encoder
-from pyinsight import Receiver, Merger, Packager, Cleaner
+from pyinsight import Receiver, Merger, Packager, Cleaner, Loader
 
 def get_aged_header(start_seq):
     with open(os.path.join('.', 'input', 'person_simple', 'schema.json'), 'r') as f:
@@ -85,8 +85,42 @@ def test_simple_aged_flow():
             total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
     assert total_size == 50000
 
-    # Step 6: Clean Test Set
-    c.remove_all_data(header['topic_id'], header['table_id'])
+    # Step 6: Load Test
+    # Client Configurations
+    sub1 = {(topic_id, 'person_simple'):[{'topic_id':'clnt001', 'table_id':'tall_man',
+                                          'fields': ['id', 'first_name', 'last_name', 'email'],
+                                          'filters': [[["gender", "=", "Male"], ["height", ">=", 175]]]}]}
+    l = Loader()
+    l.upsert_client_config('clnt001', sub1)
+    load_config = {'src_topic_id': topic_id, 'src_table_id': 'person_simple',
+                   'client_id': 'clnt001', 'tar_topic_id': 'clnt001', 'tar_table_id': 'tall_man',
+                   'load_type': 'initial'}
+    l.load(load_config)
+
+    for x in range(18):
+        for msg in l.messager.pull(l.messager.topic_loader):
+            header, data, id = l.messager.extract_message_content(msg)
+            l.load(header)
+            l.messager.ack(l.messager.topic_loader, id)
+
+    r1 = Receiver()
+    for msg in r1.messager.pull('clnt001'):
+        header, body, id = r1.messager.extract_message_content(msg)
+        r1.receive_data(header, body)
+        r1.messager.ack('clnt001', id)
+
+    total_size = 0
+    for doc_ref in r1.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
+        doc_dict = r1.depositor.get_dict_from_ref(doc_ref)
+        doc_data = json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat'))
+        for line in doc_data:
+            assert 'height' not in line
+        total_size += len(doc_data)
+    assert total_size == 8475
+
+    # Step 7: Clean Test Set
+    c.remove_all_data('clnt001', 'tall_man')
+    c.remove_all_data('test-003', 'person_simple')
     for msg in c.messager.pull(c.messager.topic_cleaner):
         header, data, id = c.messager.extract_message_content(msg)
         c.messager.ack(c.messager.topic_cleaner, id)
@@ -174,10 +208,10 @@ def test_dispatch_aged_flow():
     r.depositor.init_topic(topic_id)
     r.archiver.init_topic(topic_id)
     # Client Configurations
-    sub1 = {('test-003', 'person_simple'):[{'topic_id':'clnt001', 'table_id':'tall_man',
+    sub1 = {(topic_id, 'person_simple'):[{'topic_id':'clnt001', 'table_id':'tall_man',
                                             'fields': ['id', 'first_name', 'last_name', 'email'],
                                             'filters': [[["gender", "=", "Male"], ["height", ">=", 175]]]}]}
-    sub2 = {('test-003', 'person_simple'):[{'topic_id':'clnt002', 'table_id':'tall_woman',
+    sub2 = {(topic_id, 'person_simple'):[{'topic_id':'clnt002', 'table_id':'tall_woman',
                                             'fields': ['id', 'first_name', 'last_name', 'email'],
                                             'filters': [[["gender", "=", "Female"], ["height", ">=", 165]]]}]}
     r.upsert_client_config('clnt001', sub1)
@@ -199,4 +233,40 @@ def test_dispatch_aged_flow():
         r.receive_data(header, body)
         r.messager.ack(topic_id, id)
 
-    # Step 3: Receive File Data
+    # Step 3: Receive Client Data
+    r1 = Receiver()
+    for msg in r1.messager.pull('clnt001'):
+        header, body, id = r1.messager.extract_message_content(msg)
+        r1.receive_data(header, body)
+        r1.messager.ack('clnt001', id)
+
+    r2 = Receiver()
+    for msg in r2.messager.pull('clnt002'):
+        header, body, id = r2.messager.extract_message_content(msg)
+        r2.receive_data(header, body)
+        r2.messager.ack('clnt002', id)
+
+    # Step 4: All data check
+    total_size = 0
+    for doc_ref in r1.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
+        doc_dict = r1.depositor.get_dict_from_ref(doc_ref)
+        total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
+    assert total_size == 1534
+
+    total_size = 0
+    for doc_ref in r2.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
+        doc_dict = r2.depositor.get_dict_from_ref(doc_ref)
+        total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
+    assert total_size == 1697
+
+    # Step 5: Clean all data
+    for msg in r.messager.pull(m.messager.topic_merger):
+        header, data, id = m.messager.extract_message_content(msg)
+        m.messager.ack(m.messager.topic_merger, id)
+
+    c.remove_all_data('clnt001', 'tall_man')
+    c.remove_all_data('clnt002', 'tall_woman')
+    c.remove_all_data('test-003', 'person_simple')
+    for msg in c.messager.pull(c.messager.topic_cleaner):
+        header, data, id = c.messager.extract_message_content(msg)
+        c.messager.ack(c.messager.topic_cleaner, id)

@@ -70,9 +70,9 @@ def filter_table_column(dict_list: list, field_list):
 
 # Field_list + Filter solution => Apply to table
 def filter_table(dict_list: list, field_list=list(), filter_list=list(list(list()))):
-    if filter_list == list(list(list())) and not field_list:
+    if (not filter_list or filter_list == list(list(list()))) and not field_list:
         return dict_list
-    elif filter_list == list(list(list())):
+    elif not filter_list or filter_list == list(list(list())):
         return filter_table_column(dict_list, field_list)
     elif not field_list:
         return filter_table_dnf(dict_list, filter_list)
