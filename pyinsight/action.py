@@ -43,7 +43,7 @@ class Action():
 
         if self.logger.hasHandlers():
             self.logger.handlers.clear()
-            formatter = logging.Formatter('%(asctime)s-%(funcName)s-%(levelname)s-%(context)s-%(message)s')
+            formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(funcName)s-%(levelname)s-%(context)s:%(message)s')
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
