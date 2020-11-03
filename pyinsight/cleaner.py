@@ -1,19 +1,27 @@
 import os, json, logging
 import pyinsight
 from pyinsight.utils.exceptions import *
-from pyinsight.action import *
+from pyinsight.action import Action, backlog
 from pyinsight.utils.core import get_sort_key_from_dict
 
 __all__ = ['Cleaner']
 
-"""Clean Old Messages (Depositor and Archive)"""
+
 class Cleaner(Action):
-    def clean_data(self, topic_id, table_id):
+    """
+    Clean Old Messages (Depositor and Archive)
+    """
+    def set_current_topic_table(self, topic_id, table_id):
         self.archiver.set_current_topic_table(topic_id, table_id)
         self.depositor.set_current_topic_table(topic_id, table_id)
+        self.log_context['context'] = topic_id + '-' + table_id
+
+    @backlog
+    def clean_data(self, topic_id, table_id):
+        self.set_current_topic_table(topic_id, table_id)
         base_doc = self.depositor.get_table_header()
         if not base_doc:
-            logging.warning("{}-{}: No Table Header Found")
+            self.logger.warning("No Table Header Found", extra=self.log_context)
             return
         del_list, del_key_list, counter = list(), list(), 0
         base_doc_dict = self.depositor.get_dict_from_ref(base_doc)
@@ -33,9 +41,9 @@ class Cleaner(Action):
             self.depositor.delete_documents(del_list)
             self.archiver.remove_archives(del_key_list)
 
+    @backlog
     def remove_all_data(self, topic_id, table_id):
-        self.archiver.set_current_topic_table(topic_id, table_id)
-        self.depositor.set_current_topic_table(topic_id, table_id)
+        self.set_current_topic_table(topic_id, table_id)
         del_list, del_key_list, counter = list(), list(), 0
         for doc in self.depositor.get_stream_by_sort_key():
             if counter >= 16:

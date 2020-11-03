@@ -1,36 +1,60 @@
-import os
 import json
 import logging
+from functools import wraps
 import pyinsight
-from pyinsight.utils.core import MERGE_SIZE, PACKAGE_SIZE
 from pyinsight.utils.exceptions import *
+from pyinsight.utils.core import MERGE_SIZE, PACKAGE_SIZE, LOGGING_LEVEL
 from pyinsight.messager.messagers import DummyMessager
 from pyinsight.depositor.depositors import FileDepositor
 from pyinsight.archiver.archivers import FileArchiver
 from pyinsight.translator.translators import SapTranslator, XIATranslator
 
+def backlog(func):
+    @wraps(func)
+    def wrapper(a, *args, **kwargs):
+        try:
+            return func(a, *args, **kwargs)
+        except Exception as e:
+            header = {'action_type': a.__class__.__name__,
+                      'function': func.__name__,
+                      'exception_type': e.__class__.__name__,
+                      'exception_msg': format(e)}
+            body = {'args': args,
+                    'kwargs': kwargs}
+            a.messager.publish(a.messager.topic_backlog, header, body)
+    return wrapper
+
 
 __all__ = ['Action']
 
-"""
-Messager : Send / Parse Message - Default : Local Filesystem based
-Depositor : Document Management System - Default : Local Filesystem based
-Archive : Package Management System - Default : Local Filesystem based
-Translators : A list of customized translator to change the data_spec to xia
-"""
 class Action():
-    """Receive Receive Message and Put it into Depositor, and trigger Merger"""
-    logging.basicConfig(format='%(asctime)s - %(module)s - %(levelname)s - %(message)s')
+    """
+    Messager : Send / Parse Message - Default : Local Filesystem based
+    Depositor : Document Management System - Default : Local Filesystem based
+    Archive : Package Management System - Default : Local Filesystem based
+    Translators : A list of customized translator to change the data_spec to xia
+    """
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
         self.merge_size = MERGE_SIZE
         self.package_size = PACKAGE_SIZE
+
+        self.log_context = {'context': 'init'}
+        self.logger = logging.getLogger("Insight.Action")
+
+        if self.logger.hasHandlers():
+            self.logger.handlers.clear()
+            formatter = logging.Formatter('%(asctime)s-%(funcName)s-%(levelname)s-%(context)s-%(message)s')
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
+        self.logger.setLevel(LOGGING_LEVEL)
 
         if not messager:
             self.messager = DummyMessager()
         elif isinstance(messager, pyinsight.messager.Messager):
             self.messager = messager
         else:
-            logging.error("The Choosen Messenger has a wrong Type, Initialization Failed")
+            self.logger.error("The Choosen Messenger has a wrong Type", extra=self.log_context)
             raise InsightTypeError
 
         if not depositor:
@@ -38,7 +62,7 @@ class Action():
         elif isinstance(depositor, pyinsight.depositor.Depositor):
             self.depositor = depositor
         else:
-            logging.error("The Choosen Depositor has a wrong Type, Initialization Failed")
+            self.logger.error("The Choosen Depositor has a wrong Type", extra=self.log_context)
             raise InsightTypeError
 
         if not archiver:
@@ -46,7 +70,7 @@ class Action():
         elif isinstance(archiver, pyinsight.archiver.Archiver):
             self.archiver = archiver
         else:
-            logging.error("The Choosen Archiver has a wrong Type, Initialization Failed")
+            self.logger.error("The Choosen Archiver has a wrong Type", extra=self.log_context)
             raise InsightTypeError
 
         # Standard Translators
@@ -62,7 +86,7 @@ class Action():
                 for spec in cust_trans.spec_list:
                     self.translators[spec] = cust_trans
             else:
-                logging.error("The Choosen Translator has a wrong Type, Initialization Failed")
+                self.logger.error("The Choosen Translator has a wrong Type", extra=self.log_context)
                 raise InsightTypeError
 
     def set_merge_size(self, merge_size):

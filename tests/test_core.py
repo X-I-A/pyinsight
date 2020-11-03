@@ -96,10 +96,6 @@ class TestInsightStandard():
             header.pop('data')
         with gzip.open(data_path) as f:
             data = json.load(f)
-        for content in get_data_chunk(data, header, 2 ** 10):
-            print(content['age'])
-            print(content['end_age'])
-            print(len(content['data']))
 
     def test_normal_data_chunk(self):
         header_path = os.path.join('.', 'input', 'insight_formats', 'normal_package.packaged')
@@ -109,9 +105,6 @@ class TestInsightStandard():
             header.pop('data')
         with gzip.open(data_path) as f:
             data = json.load(f)
-        for content in get_data_chunk(data, header, 2 ** 15):
-            print(content['start_seq'])
-            print(len(content['data']))
 
 class TestMiscellaneous():
     def test_get_timestamp(self):
@@ -121,8 +114,3 @@ class TestMiscellaneous():
             current_t = get_current_timestamp()
             assert last_t < current_t
             last_t = current_t
-
-
-if __name__=='__main__':
-    a = TestInsightStandard()
-    a.test_normal_data_chunk()
