@@ -38,6 +38,7 @@ class Dispatcher(Action):
         return self.subscription.get((src_topic_id, src_table_id), [])
 
     # Data dispatch
+    @backlog
     def dispatch(self, src_header, src_body_data, src_file_data, tar_topic_id=None, tar_table_id=None):
         destinations = self.get_destinations(src_header['topic_id'], src_header['table_id'])
         for destination in destinations:
