@@ -1,30 +1,30 @@
 import json
 import logging
 import pyinsight
+from pyinsight.action import backlog
 from pyinsight.transfer import Transfer
 from pyinsight.dispatcher import Dispatcher
 from pyinsight.utils.core import get_sort_key_from_dict, encoder
 
 __all__ = ['Loader']
 
-"""
-Load and Dispatch Message
-Dispatcher with only one configuration
-Load Configuration Structure:
-src_topic_id, src_table_id
-client_id, tar_topic_id, tar_table_id
-load_type: 'initial', 'header', 'normal', 'packaged'
-Range of load: 'start_key': str, 'end_key': str
-initial load_sequence:
-* Start by header
-* header thread = find the first merged package
-* create package load chain (do one and create two logic)
-* load the merged and initial segment
-* create package load chain if met
-Best Pratice: Deploy un loader per client_id
-"""
-
 class Loader(Transfer):
+    """
+    Load and Dispatch Message
+    Dispatcher with only one configuration
+    Load Configuration Structure:
+    src_topic_id, src_table_id
+    client_id, tar_topic_id, tar_table_id
+    load_type: 'initial', 'header', 'normal', 'packaged'
+    Range of load: 'start_key': str, 'end_key': str
+    initial load_sequence:
+    * Start by header
+    * header thread = find the first merged package
+    * create package load chain (do one and create two logic)
+    * load the merged and initial segment
+    * create package load chain if met
+    Best Pratice: Deploy un loader per client_id
+    """
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
         super().__init__(messager=None, depositor=None, archiver=None, translators=list())
         self.dispatcher = None
@@ -98,6 +98,7 @@ class Loader(Transfer):
                 self.messager.trigger_load(left_load_config)
             break
 
+    @backlog
     def load(self, load_config: dict):
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         tar_topic_id, tar_table_id = load_config['tar_topic_id'], load_config['tar_table_id']

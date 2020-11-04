@@ -15,7 +15,6 @@ class Cleaner(Action):
         self.archiver.set_current_topic_table(topic_id, table_id)
         self.depositor.set_current_topic_table(topic_id, table_id)
         self.log_context['context'] = topic_id + '-' + table_id
-        self.logger.info("Topic/Table set", extra=self.log_context)
 
     @backlog
     def clean_data(self, topic_id, table_id):
