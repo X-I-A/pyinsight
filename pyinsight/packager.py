@@ -68,3 +68,4 @@ class Packager(Action):
                 min_age, min_start_time, del_list = '', '', list()
             else:
                 del_list.append(doc_ref)
+        return True

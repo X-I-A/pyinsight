@@ -103,4 +103,4 @@ class Receiver(Transfer):
         # 6. Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()
-        return
+        return True

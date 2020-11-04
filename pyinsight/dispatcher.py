@@ -90,3 +90,4 @@ class Dispatcher(Action):
                     self.archiver.remove_data()
                     self.logger.info("File location to be dispatched by message", extra=self.log_context)
                     return self._send_message(destination['topic_id'], tar_header, tar_body_data)
+        return True

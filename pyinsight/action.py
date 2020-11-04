@@ -1,16 +1,22 @@
 import json
 import logging
+import traceback
 from functools import wraps
 import pyinsight
 from pyinsight.insight import Insight
 from pyinsight.utils.exceptions import *
-from pyinsight.utils.core import MERGE_SIZE, PACKAGE_SIZE, LOGGING_LEVEL
+from pyinsight.utils.core import encoder, MERGE_SIZE, PACKAGE_SIZE
 from pyinsight.messager.messagers import DummyMessager
 from pyinsight.depositor.depositors import FileDepositor
 from pyinsight.archiver.archivers import FileArchiver
 from pyinsight.translator.translators import SapTranslator, XIATranslator
 
 def backlog(func):
+    """
+
+    :param func:
+    :return: boolean - when False, the data will be sent to backlog to furthur analyse
+    """
     @wraps(func)
     def wrapper(a, *args, **kwargs):
         try:
@@ -21,8 +27,12 @@ def backlog(func):
                       'exception_type': e.__class__.__name__,
                       'exception_msg': format(e)}
             body = {'args': args,
-                    'kwargs': kwargs}
-            a.messager.publish(a.messager.topic_backlog, header, body)
+                    'kwargs': kwargs,
+                    'trace': traceback.format_exc()}
+            if a.messager.blob_support:
+                a.messager.publish(a.messager.topic_backlog, header, encoder(json.dumps(body), 'flat', 'gzip'))
+            else:
+                a.messager.publish(a.messager.topic_backlog, header, encoder(json.dumps(body), 'flat', 'b64g'))
     return wrapper
 
 

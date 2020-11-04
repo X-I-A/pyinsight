@@ -67,6 +67,14 @@ class FileDepositor(depositor.Depositor):
             os.remove(ori_filename)
         return True
 
+    def inc_table_header(self, **kwargs) -> dict:
+        header_ref = self.get_table_header()
+        header_dict = self.get_dict_from_ref(header_ref)
+        for key, value in kwargs:
+            header_dict[key] = header_dict.get(key, 0) + value
+        self.update_document(header_ref, header_dict)
+        return header_dict
+
     # All of the following method need
     def set_current_topic_table(self, topic_id, table_id):
         self.topic_id = topic_id
@@ -134,9 +142,9 @@ class FileDepositor(depositor.Depositor):
         return True
 
     def merge_documents(self, base_doc, merge_flag, start_key, end_key, data_list,
-                        min_start=None, merged_level=0) -> bool:
+                        min_start=None, merged_level=0) -> int:
         base_doc_dict = self.get_dict_from_ref(base_doc)
-        data_operation_flag = False
+        data_operation_size = 0
         if 'age' in base_doc_dict:
             aged_flag = True
             segment_key_start = base_doc_dict.get('segment_start_age', 0)
@@ -150,7 +158,7 @@ class FileDepositor(depositor.Depositor):
         # Case 1: Merged Member Nodes / Leader with same min_start = Do nothing
         if base_doc_dict['merge_status'] == 'merged' and base_doc_dict['merged_level'] == merged_level:
             if not min_start or min_start == segment_key_start:
-                return data_operation_flag
+                return data_operation_size
         # Case 2: Leader nodes, need to update min_start
         if base_doc_dict.get('merged_level', -1) != merged_level:
             base_doc_dict['merged_level'] = merged_level
@@ -166,7 +174,6 @@ class FileDepositor(depositor.Depositor):
             pass
         else:
             base_doc_dict['data'] = encoder(json.dumps(data_list), 'flat', self.data_encode)
-            data_operation_flag = True
             if aged_flag:
                 base_doc_dict.update({'age': start_key, 'end_age': end_key})
             else:
@@ -182,4 +189,4 @@ class FileDepositor(depositor.Depositor):
         else:
             with open(os.path.join(self.table_path, base_doc), 'w') as f:
                 f.write(json.dumps(base_doc_dict))
-        return data_operation_flag
+        return data_operation_size

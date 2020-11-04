@@ -13,6 +13,8 @@ class Depositor(Worker):
 
     def update_document(self, ref, doc_dict) -> bool: pass
 
+    def inc_table_header(self, **kwargs) -> dict: pass
+
     def delete_documents(self, ref_list) -> bool: pass
 
     def get_table_header(self): pass
@@ -25,4 +27,4 @@ class Depositor(Worker):
                                min_merge_level=0, equal=True): pass
 
     def merge_documents(self, base_doc, merge_flag, start_key, end_key,
-                        data_list, min_start=None, merged_level=0) -> dict: pass
+                        data_list, min_start=None, merged_level=0) -> int: pass

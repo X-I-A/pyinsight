@@ -44,6 +44,7 @@ class Cleaner(Action):
             self.depositor.delete_documents(del_list)
             self.logger.info("{} archives deleted".format(len(del_key_list)), extra=self.log_context)
             self.archiver.remove_archives(del_key_list)
+        return True
 
     @backlog
     def remove_all_data(self, topic_id, table_id):
@@ -65,3 +66,4 @@ class Cleaner(Action):
             self.depositor.delete_documents(del_list)
             self.logger.info("{} archives deleted".format(len(del_key_list)), extra=self.log_context)
             self.archiver.remove_archives(del_key_list)
+        return True

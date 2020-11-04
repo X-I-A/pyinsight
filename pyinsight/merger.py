@@ -67,7 +67,7 @@ class Merger(Action):
         self.log_context['context'] = topic_id + '-' + table_id
         header_ref = self.depositor.get_table_header()
         if not header_ref:
-            return # No header found, do nothing
+            return False
         header_dict = self.depositor.get_dict_from_ref(header_ref)
         if header_dict['aged']:
             self.__class__ = AgeMerger
@@ -90,12 +90,12 @@ class AgeMerger(Merger):
                 target_merge_level = doc_dict['merge_level']
                 # Current Level Already Merged:
                 if doc_dict.get('merged_level', 0) >= merge_level:
-                    self.logger.warning("Merge Level {} already Merged".format(merge_level), extra=self.log_context)
-                    return
+                    self.logger.info("Merge Level {} already Merged".format(merge_level), extra=self.log_context)
+                    return True
                 # Level - 1 Not merged
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
                     self.logger.warning('Lower level {} not ready yet'.format(merge_level - 1), extra=self.log_context)
-                    return
+                    return False
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_age, end_age = doc_dict['segment_start_age'], doc_dict.get('end_age', doc_dict['age'])
                     self.logger.info("Leader already merged {}-{}".format(start_age, end_age), extra=self.log_context)
@@ -193,7 +193,7 @@ class AgeMerger(Merger):
         if target_merge_level > merge_level:
             self.logger.info("Trigger merger of higher level", extra=self.log_context)
             self.messager.trigger_merge(self.depositor.topic_id, self.depositor.table_id, merge_key, merge_level + 1)
-
+        return True
 
 class NormalMerger(Merger):
     def _merge_data(self, start_seq, merge_key, merge_level, merge_size=MERGE_SIZE):
@@ -208,12 +208,12 @@ class NormalMerger(Merger):
                 target_merge_level = doc_dict['merge_level']
                 # Current Level Already Merged:
                 if doc_dict.get('merged_level', 0) >= merge_level:
-                    self.logger.warning("Merge Level {} already Merged".format(merge_level), extra=self.log_context)
-                    return
+                    self.logger.info("Merge Level {} already Merged".format(merge_level), extra=self.log_context)
+                    return False
                 # Level - 1 Not merged
                 if doc_dict.get('merged_level', 0) < merge_level - 1:
                     self.logger.warning('Lower level {} not ready yet'.format(merge_level - 1), extra=self.log_context)
-                    return
+                    return False
                 if doc_dict['merge_status'] == 'merged': # Header Merged
                     start_time, end_time = doc_dict['segment_start_time'], doc_dict['deposit_at']
                     self.logger.info("Leader already merged {}-{}".format(start_time, end_time), extra=self.log_context)
@@ -292,3 +292,4 @@ class NormalMerger(Merger):
         # Trigger the merge of next level
         if target_merge_level > merge_level:
             self.messager.trigger_merge(self.depositor.topic_id, self.depositor.table_id, merge_key, merge_level+1)
+        return True

@@ -111,20 +111,20 @@ class Loader(Transfer):
             self.dispatcher.set_merge_size(self.merge_size)
         if not self.dispatcher:
             self.logger.warning("Source Table / Topic is not subscribed", extra=self.log_context)
-            return
+            return False
         # Check if target exists
         target_list = [(i['topic_id'], i['table_id'])
                        for i in self.dispatcher.get_destinations(src_topic_id, src_table_id)]
         if (tar_topic_id, tar_table_id) not in target_list:
             self.logger.warning("Target Table / Topic is not subscribed", extra=self.log_context)
-            return
+            return False
         # Loader Setting
         self.depositor.set_current_topic_table(src_topic_id, src_table_id)
         self.archiver.set_current_topic_table(src_topic_id, src_table_id)
         header_ref = self.depositor.get_table_header()
         if not header_ref:
             self.logger.warning("No Table Header Found", extra=self.log_context)
-            return
+            return False
         header_dict = self.depositor.get_dict_from_ref(header_ref)
         load_type = load_config.get('load_type', 'unknown')
         # Initial Loading
@@ -142,7 +142,7 @@ class Loader(Transfer):
                 break
             if not start_doc_ref or not end_doc_ref:
                 self.logger.info("No data to load", extra=self.log_context)
-                return
+                return False
             start_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(start_doc_ref))
             end_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(end_doc_ref))
             # Case 1: Only Package Load Process:
@@ -176,4 +176,4 @@ class Loader(Transfer):
             self._package_load(header_dict, load_config, tar_topic_id, tar_table_id)
         else:
             self.logger.error("load type {} not supported".format(load_type), extra=self.log_context)
-            return
+            return True
