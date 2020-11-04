@@ -10,7 +10,7 @@ from .exceptions import InsightDataSpecError
 
 MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 20)
 PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 25)
-LOGGING_LEVEL = os.environ.get('INSIGHT_LOGGING_LEVEL', logging.INFO)
+LOGGING_LEVEL = os.environ.get('INSIGHT_LOGGING_LEVEL', logging.WARNING)
 
 """
 Filter Section :

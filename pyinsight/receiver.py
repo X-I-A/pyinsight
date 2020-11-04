@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import pyinsight
+from pyinsight.action import backlog
 from pyinsight.utils.exceptions import *
 from pyinsight.transfer import Transfer
 from pyinsight.utils.validation import x_i_proto_check
@@ -15,6 +16,7 @@ __all__ = ['Receiver']
 Receive and Dispatch Message, Save the message to Dispositor and Archiver
 """
 class Receiver(Transfer):
+    @backlog
     def receive_data(self, header, data):
         # 1. Receive and check
         # 1.1 Checks

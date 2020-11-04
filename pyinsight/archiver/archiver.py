@@ -2,6 +2,7 @@ from pyinsight.worker import Worker
 
 class Archiver(Worker):
     def __init__(self):
+        super().__init__()
         self.topic_id = None
         self.table_id = None
         self.topic_path = None

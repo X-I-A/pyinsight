@@ -2,6 +2,7 @@ import json
 import logging
 from functools import wraps
 import pyinsight
+from pyinsight.insight import Insight
 from pyinsight.utils.exceptions import *
 from pyinsight.utils.core import MERGE_SIZE, PACKAGE_SIZE, LOGGING_LEVEL
 from pyinsight.messager.messagers import DummyMessager
@@ -27,7 +28,7 @@ def backlog(func):
 
 __all__ = ['Action']
 
-class Action():
+class Action(Insight):
     """
     Messager : Send / Parse Message - Default : Local Filesystem based
     Depositor : Document Management System - Default : Local Filesystem based
@@ -35,20 +36,19 @@ class Action():
     Translators : A list of customized translator to change the data_spec to xia
     """
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+        super().__init__()
         self.merge_size = MERGE_SIZE
         self.package_size = PACKAGE_SIZE
 
         self.log_context = {'context': 'init'}
         self.logger = logging.getLogger("Insight.Action")
 
-        if self.logger.hasHandlers():
-            self.logger.handlers.clear()
+        if len(self.logger.handlers) == 0:
             formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
                                           '%(context)s:%(message)s')
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
-        self.logger.setLevel(LOGGING_LEVEL)
 
         if not messager:
             self.messager = DummyMessager()

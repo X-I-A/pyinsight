@@ -2,17 +2,21 @@ import os
 import json
 import pyinsight
 from pyinsight.utils.exceptions import *
-from pyinsight.action import Action
+from pyinsight.action import Action, backlog
 from pyinsight.utils.validation import *
 from pyinsight.utils.core import *
 
 __all__ = ['Packager']
 
-"""Packaging Merged Documents (Messager, Depositor, Archiver and Dispatcher)"""
+
 class Packager(Action):
+    """
+    Packaging Merged Documents (Messager, Depositor, Archiver and Dispatcher)
+    """
     def _get_record_from_doc_dict(self, doc_dict):
         return json.loads(encoder(doc_dict['data'], doc_dict['data_encode'], 'flat'))
 
+    @backlog
     def package_data(self, topic_id, table_id):
         package_size = self.package_size
         self.archiver.set_current_topic_table(topic_id, table_id)

@@ -1,11 +1,16 @@
 import logging
-from pyinsight.utils.core import LOGGING_LEVEL
+from pyinsight.insight import Insight
 
-class Worker():
+class Worker(Insight):
     def __init__(self):
-        self.log_context = {'context': 'init'}
+        super().__init__()
         self.logger = logging.getLogger("Insight.Worker")
-        self.logger.setLevel(LOGGING_LEVEL)
+        if len(self.logger.handlers) == 0:
+            formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
+                                          ':%(message)s')
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
 
     def init_insight(self): pass
 
