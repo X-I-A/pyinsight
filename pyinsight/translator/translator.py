@@ -1,8 +1,8 @@
 import json
-import base64
-import gzip
-import logging
-import pyinsight.utils.core
+from pyinsight.utils.core import encoder
+
+__all__ = ['Translator']
+
 
 class Translator():
     def __init__(self):
@@ -10,7 +10,7 @@ class Translator():
 
     @classmethod
     def encoder(cls, data, src_encode, tar_encode):
-        return pyinsight.utils.core.encoder(data, src_encode, tar_encode)
+        return encoder(data, src_encode, tar_encode)
 
     # Depositor Scope - Data format = record
     def get_depositor_data(self, data, src_encode, tar_encode, header):

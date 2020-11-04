@@ -4,7 +4,7 @@ import logging
 import threading
 import pyinsight
 from pyinsight.action import backlog
-from pyinsight.utils.exceptions import *
+from pyinsight.utils.exceptions import InsightDataSpecError
 from pyinsight.transfer import Transfer
 from pyinsight.utils.validation import x_i_proto_check
 from pyinsight.utils.core import get_merge_level, get_data_chunk

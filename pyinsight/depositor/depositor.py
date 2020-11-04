@@ -1,5 +1,8 @@
 from pyinsight.worker import Worker
 
+__all__ = ['Depositor']
+
+
 class Depositor(Worker):
     def __init__(self):
         super().__init__()

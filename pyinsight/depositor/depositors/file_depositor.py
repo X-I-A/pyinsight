@@ -1,9 +1,9 @@
 import os
 import json
-from pyinsight import depositor
+from ..depositor import Depositor
 from pyinsight.utils.core import get_current_timestamp, encoder, get_merge_level
 
-class FileDepositor(depositor.Depositor):
+class FileDepositor(Depositor):
     def __init__(self):
         super().__init__()
         self.data_encode = 'b64g'
@@ -70,7 +70,7 @@ class FileDepositor(depositor.Depositor):
     def inc_table_header(self, **kwargs) -> dict:
         header_ref = self.get_table_header()
         header_dict = self.get_dict_from_ref(header_ref)
-        for key, value in kwargs:
+        for key, value in kwargs.items():
             header_dict[key] = header_dict.get(key, 0) + value
         self.update_document(header_ref, header_dict)
         return header_dict
@@ -144,6 +144,7 @@ class FileDepositor(depositor.Depositor):
     def merge_documents(self, base_doc, merge_flag, start_key, end_key, data_list,
                         min_start=None, merged_level=0) -> int:
         base_doc_dict = self.get_dict_from_ref(base_doc)
+        initial_status = base_doc_dict['merge_status']
         data_operation_size = 0
         if 'age' in base_doc_dict:
             aged_flag = True
@@ -185,6 +186,8 @@ class FileDepositor(depositor.Depositor):
                 f.write(json.dumps(base_doc_dict))
             if self._get_ref_from_filename(base_doc).endswith('.initial'):
                 os.remove(os.path.join(self.table_path, base_doc))
+            if initial_status == 'initial':
+                data_operation_size = len(encoder(base_doc_dict['data'], self.data_encode, 'flat'))
         # Case 4.2: Size not enough : Not a final merge case
         else:
             with open(os.path.join(self.table_path, base_doc), 'w') as f:

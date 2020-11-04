@@ -1,10 +1,6 @@
-import os
 import json
-import pyinsight
-from pyinsight.utils.exceptions import *
 from pyinsight.action import Action, backlog
-from pyinsight.utils.validation import *
-from pyinsight.utils.core import *
+from pyinsight.utils.core import encoder
 
 __all__ = ['Packager']
 
@@ -14,22 +10,29 @@ class Packager(Action):
     Packaging Merged Documents (Messager, Depositor, Archiver and Dispatcher)
     """
     def _get_record_from_doc_dict(self, doc_dict):
-        return json.loads(encoder(doc_dict['data'], doc_dict['data_encode'], 'flat'))
+        flat_data = encoder(doc_dict['data'], doc_dict['data_encode'], 'flat')
+        return json.loads(flat_data), len(flat_data)
 
     @backlog
     def package_data(self, topic_id, table_id):
         package_size = self.package_size
         self.archiver.set_current_topic_table(topic_id, table_id)
         self.depositor.set_current_topic_table(topic_id, table_id)
-        min_age, min_start_time, del_list = '', '', list()
+        packaged_size, min_age, min_start_time, del_list = 0, '', '', list()
         start_age = 2
+        for last_pkg_ref in self.depositor.get_stream_by_sort_key(['packaged'], reverse=True):
+            last_pkg_dict = self.depositor.get_dict_from_ref(last_pkg_ref)
+            if 'age' in last_pkg_dict:
+                start_age = int(last_pkg_dict.get('end_age', last_pkg_dict['age'])) + 1
+            break
+
         for doc_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial']):
             doc_dict = self.depositor.get_dict_from_ref(doc_ref)
             self.log_context['context'] = '-'.join([self.depositor.topic_id, self.depositor.table_id,
                                                     doc_dict['merge_key']])
             if 'age' in doc_dict:
                 if int(doc_dict['age']) != start_age:
-                    self.logger.warning("Aged dataflow start by {} instead of 2".format(doc_dict['age']),
+                    self.logger.warning("Aged dataflow start by {} instead of {}".format(doc_dict['age'], start_age),
                                         extra=self.log_context)
                     break
                 else:
@@ -41,7 +44,9 @@ class Packager(Action):
                 min_age = doc_dict['age']
             elif not min_start_time and 'deposit_at' in doc_dict:
                 min_start_time = doc_dict.get('start_time', doc_dict['deposit_at'])
-            self.archiver.add_data(self._get_record_from_doc_dict(doc_dict))
+            record_data, record_data_size = self._get_record_from_doc_dict(doc_dict)
+            packaged_size += record_data_size
+            self.archiver.add_data(record_data)
             self.logger.info("Adding to archive with min:{}{}".format(min_age, min_start_time), extra=self.log_context)
             if self.archiver.workspace_size >= package_size:
                 self.archiver.set_merge_key(doc_dict['merge_key'])
@@ -65,7 +70,9 @@ class Packager(Action):
                 self.archiver.remove_data()
                 self.logger.info("Deleting {} merged documents".format(len(del_list)), extra=self.log_context)
                 self.depositor.delete_documents(del_list)
-                min_age, min_start_time, del_list = '', '', list()
+                self.depositor.inc_table_header(packaged_size=packaged_size)
+                packaged_size, min_age, min_start_time, del_list = 0, '', '', list()
             else:
                 del_list.append(doc_ref)
+        self.archiver.remove_data()
         return True

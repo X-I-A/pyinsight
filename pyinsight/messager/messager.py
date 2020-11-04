@@ -1,7 +1,11 @@
 from pyinsight.worker import Worker
 
+__all__ = ['Messager']
+
+
 class Messager(Worker):
     def __init__(self):
+        super().__init__()
         self.blob_support = False
         self.topic_cockpit = 'insight-cockpit'
         self.topic_cleaner = 'insight-cleaner'

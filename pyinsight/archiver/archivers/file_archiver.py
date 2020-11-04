@@ -3,10 +3,10 @@ import json
 import shutil
 import gzip
 import logging
-from pyinsight import archiver
+from ..archiver import Archiver
 from pyinsight.utils.core import filter_table_column
 
-class FileArchiver(archiver.Archiver):
+class FileArchiver(Archiver):
 
     def __init__(self):
         super().__init__()

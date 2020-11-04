@@ -4,12 +4,15 @@ import traceback
 from functools import wraps
 import pyinsight
 from pyinsight.insight import Insight
-from pyinsight.utils.exceptions import *
+from pyinsight.utils.exceptions import InsightTypeError
 from pyinsight.utils.core import encoder, MERGE_SIZE, PACKAGE_SIZE
-from pyinsight.messager.messagers import DummyMessager
+from pyinsight.messager.messagers.dummy_messager import DummyMessager
 from pyinsight.depositor.depositors import FileDepositor
 from pyinsight.archiver.archivers import FileArchiver
 from pyinsight.translator.translators import SapTranslator, XIATranslator
+
+__all__ = ['Action']
+
 
 def backlog(func):
     """
@@ -35,8 +38,6 @@ def backlog(func):
                 a.messager.publish(a.messager.topic_backlog, header, encoder(json.dumps(body), 'flat', 'b64g'))
     return wrapper
 
-
-__all__ = ['Action']
 
 class Action(Insight):
     """
@@ -66,7 +67,7 @@ class Action(Insight):
             self.messager = messager
         else:
             self.logger.error("The Choosen Messenger has a wrong Type", extra=self.log_context)
-            raise InsightTypeError
+            raise InsightTypeError("INS-000005")
 
         if not depositor:
             self.depositor = FileDepositor()
@@ -74,7 +75,7 @@ class Action(Insight):
             self.depositor = depositor
         else:
             self.logger.error("The Choosen Depositor has a wrong Type", extra=self.log_context)
-            raise InsightTypeError
+            raise InsightTypeError("INS-000006")
 
         if not archiver:
             self.archiver = FileArchiver()
@@ -82,7 +83,7 @@ class Action(Insight):
             self.archiver = archiver
         else:
             self.logger.error("The Choosen Archiver has a wrong Type", extra=self.log_context)
-            raise InsightTypeError
+            raise InsightTypeError("INS-000007")
 
         # Standard Translators
         self.translators = dict()
@@ -98,7 +99,7 @@ class Action(Insight):
                     self.translators[spec] = cust_trans
             else:
                 self.logger.error("The Choosen Translator has a wrong Type", extra=self.log_context)
-                raise InsightTypeError
+                raise InsightTypeError("INS-000008")
 
     def set_merge_size(self, merge_size):
         self.merge_size = merge_size

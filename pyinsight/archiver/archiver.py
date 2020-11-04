@@ -1,5 +1,8 @@
 from pyinsight.worker import Worker
 
+__all__ = ['Archiver']
+
+
 class Archiver(Worker):
     def __init__(self):
         super().__init__()

@@ -45,6 +45,7 @@ def test_simple_aged_flow():
     r.archiver.init_topic(topic_id)
 
     m.set_merge_size(2 ** 12)
+    m.set_package_size(2 ** 20)
     p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
@@ -68,7 +69,6 @@ def test_simple_aged_flow():
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
-    p.messager.trigger_package(header['topic_id'], header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
         p.package_data(header['topic_id'], header['table_id'])
@@ -137,6 +137,7 @@ def test_gapped_aged_flow():
     r.archiver.init_topic(topic_id)
 
     m.set_merge_size(2 ** 12)
+    m.set_package_size(2 ** 20)
     p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message

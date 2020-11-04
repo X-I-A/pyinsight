@@ -1,6 +1,9 @@
 import logging
 from pyinsight.insight import Insight
 
+__all__ = ['Worker']
+
+
 class Worker(Insight):
     def __init__(self):
         super().__init__()

@@ -1,6 +1,4 @@
-import os, json, logging
-import pyinsight
-from pyinsight.utils.exceptions import *
+import json
 from pyinsight.action import Action, backlog
 from pyinsight.utils.core import encoder, get_merge_level, get_sort_key_from_dict, MERGE_SIZE
 
@@ -42,24 +40,31 @@ class Merger(Action):
         return json.loads(encoder(doc_dict['data'], doc_dict['data_encode'], 'flat'))
 
     def _merge_and_delete_document(self, merge_level, merge_list, del_list):
+        merged_size = 0
         if merge_list:
             min_sort_key = min([i[2] for i in merge_list])
             max_sort_key = max([i[3] for i in merge_list])
             # Merge Body Items
             for item in merge_list:
                 if item[3] != max_sort_key:
-                    self.depositor.merge_documents(item[0], item[1], item[2], item[3], item[4])
+                    merged_size += self.depositor.merge_documents(item[0], item[1], item[2], item[3], item[4])
             # Merge Leader Item
             for item in merge_list:
                 if item[3] == max_sort_key: # Leader item
-                    self.depositor.merge_documents(item[0], item[1], item[2], item[3], item[4],
-                                                       min_sort_key, merge_level)
+                    merged_size += self.depositor.merge_documents(item[0], item[1], item[2], item[3], item[4],
+                                                                  min_sort_key, merge_level)
             # Merge List
             merge_ref_list = [i[0] for i in merge_list]
             to_del_list = [x for x in del_list if x not in merge_ref_list]
         else: # No merging => Delete Only
             to_del_list = del_list
-        self.depositor.delete_documents(to_del_list)  # Only delete the no-merged items
+        self.depositor.delete_documents(to_del_list)
+        # Update header counter
+        if merged_size > 0:
+            new_header_dict = self.depositor.inc_table_header(merged_size=merged_size)
+        # Trigger Packager
+            if new_header_dict['merged_size'] - new_header_dict.get('packaged_size', 0) > self.package_size * 1.2:
+                self.messager.trigger_package(self.depositor.topic_id, self.depositor.table_id)
 
     @backlog
     def merge_data(self, topic_id, table_id, merge_key, merge_level):
