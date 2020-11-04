@@ -1,19 +1,20 @@
 import json
 import gzip
 import base64
-from pyinsight.action import Action
+from pyinsight.action import Action, backlog
 from pyinsight.utils.core import filter_table, get_data_chunk, X_I_HEADER
 
 __all__ = ['Dispatcher']
 
-"""
-# Send document to subscriptors
-## Data Structure - subscriptions
-* Key : Tuple of (topic_id, table_id) -> Source
-* Value: List of destinations
-* Destinations: topic_id, table_id, fields, filters (NDF)
-"""
+
 class Dispatcher(Action):
+    """
+    # Send document to subscriptors
+    ## Data Structure - subscriptions
+    * Key : Tuple of (topic_id, table_id) -> Source
+    * Value: List of destinations
+    * Destinations: topic_id, table_id, fields, filters (NDF)
+    """
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
         super().__init__(messager=None, depositor=None, archiver=None, translators=list())
         self.messager_only = False
@@ -37,12 +38,16 @@ class Dispatcher(Action):
         return self.subscription.get((src_topic_id, src_table_id), [])
 
     # Data dispatch
+    @backlog
     def dispatch(self, src_header, src_body_data, src_file_data, tar_topic_id=None, tar_table_id=None):
         destinations = self.get_destinations(src_header['topic_id'], src_header['table_id'])
         for destination in destinations:
             if tar_topic_id and tar_topic_id != destination['topic_id'] or \
                 tar_table_id and tar_table_id != destination['table_id']:
                 continue
+            self.log_context['context'] = src_header['topic_id'] + '-' + src_header['table_id'] + '-' + \
+                                          src_header.get('merge_key', src_header['start_seq']) + '|' + \
+                                          destination['topic_id']+ '-' + destination['table_id']
             # Build Header
             tar_header = {'table_id': destination['table_id']}
             tar_body_data = src_body_data
@@ -54,10 +59,12 @@ class Dispatcher(Action):
             filter_list = destination.get('filters', None)
             # Case 1: Header => No modification
             if int(src_header.get('age', 0)) == 1:
+                self.logger.info("Header to be dispatched by message", extra=self.log_context)
                 return self._send_message(destination['topic_id'], tar_header, tar_body_data)
             # Case 2: Body Message Send Only
             elif src_header['data_store'] == 'body':
                 tar_body_data = filter_table(src_body_data, field_list, filter_list)
+                self.logger.info("Data to be dispatched by message", extra=self.log_context)
                 return self._send_message(destination['topic_id'], tar_header, tar_body_data)
             # Case 3: File Message
             elif src_header['data_store'] == 'file':
@@ -67,6 +74,7 @@ class Dispatcher(Action):
                     tar_header['data_store'] = 'body'
                     for chunk_header in get_data_chunk(tar_file_data, tar_header, self.merge_size):
                         chunk_data = chunk_header.pop('data')
+                        self.logger.info("File data to be dispatched by chunked message", extra=self.log_context)
                         self._send_message(destination['topic_id'], chunk_header, chunk_data)
                 # Case 3.2 Send content by file
                 else:
@@ -77,6 +85,9 @@ class Dispatcher(Action):
                     self.archiver.set_current_topic_table(destination['topic_id'], destination['table_id'])
                     self.archiver.set_merge_key(merge_key)
                     self.archiver.add_data(tar_file_data)
+                    self.logger.info("File data to be saved", extra=self.log_context)
                     tar_body_data = self.archiver.archive_data()
                     self.archiver.remove_data()
+                    self.logger.info("File location to be dispatched by message", extra=self.log_context)
                     return self._send_message(destination['topic_id'], tar_header, tar_body_data)
+        return True

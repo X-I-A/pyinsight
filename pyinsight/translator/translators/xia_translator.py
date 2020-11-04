@@ -1,7 +1,7 @@
 import json
-from pyinsight import translator
+from ..translator import Translator
 
-class XIATranslator(translator.Translator):
+class XIATranslator(Translator):
     def __init__(self):
         super().__init__()
         self.spec_list = ['x-i-a']

@@ -1,30 +1,30 @@
 import json
 import logging
 import pyinsight
+from pyinsight.action import backlog
 from pyinsight.transfer import Transfer
 from pyinsight.dispatcher import Dispatcher
 from pyinsight.utils.core import get_sort_key_from_dict, encoder
 
 __all__ = ['Loader']
 
-"""
-Load and Dispatch Message
-Dispatcher with only one configuration
-Load Configuration Structure:
-src_topic_id, src_table_id
-client_id, tar_topic_id, tar_table_id
-load_type: 'initial', 'header', 'normal', 'packaged'
-Range of load: 'start_key': str, 'end_key': str
-initial load_sequence:
-* Start by header
-* header thread = find the first merged package
-* create package load chain (do one and create two logic)
-* load the merged and initial segment
-* create package load chain if met
-Best Pratice: Deploy un loader per client_id
-"""
-
 class Loader(Transfer):
+    """
+    Load and Dispatch Message
+    Dispatcher with only one configuration
+    Load Configuration Structure:
+    src_topic_id, src_table_id
+    client_id, tar_topic_id, tar_table_id
+    load_type: 'initial', 'header', 'normal', 'packaged'
+    Range of load: 'start_key': str, 'end_key': str
+    initial load_sequence:
+    * Start by header
+    * header thread = find the first merged package
+    * create package load chain (do one and create two logic)
+    * load the merged and initial segment
+    * create package load chain if met
+    Best Pratice: Deploy un loader per client_id
+    """
     def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
         super().__init__(messager=None, depositor=None, archiver=None, translators=list())
         self.dispatcher = None
@@ -98,35 +98,39 @@ class Loader(Transfer):
                 self.messager.trigger_load(left_load_config)
             break
 
+    @backlog
     def load(self, load_config: dict):
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         tar_topic_id, tar_table_id = load_config['tar_topic_id'], load_config['tar_table_id']
+        self.log_context['context'] = src_topic_id + '-' + src_table_id + '|' + \
+                                      tar_topic_id + '-' + tar_table_id
         # Dispatch Setting
         client_set = self.subscription_dict.get((src_topic_id, src_table_id), [])
         if load_config['client_id'] in client_set:
             self.dispatcher = self.client_dict.get(load_config['client_id'], None)
             self.dispatcher.set_merge_size(self.merge_size)
         if not self.dispatcher:
-            logging.warning("{}-{}: Source Table / Topic is not subscribed".format(src_topic_id, src_table_id))
-            return
+            self.logger.warning("Source Table / Topic is not subscribed", extra=self.log_context)
+            return False
         # Check if target exists
         target_list = [(i['topic_id'], i['table_id'])
                        for i in self.dispatcher.get_destinations(src_topic_id, src_table_id)]
         if (tar_topic_id, tar_table_id) not in target_list:
-            logging.warning("{}-{}: Target Table / Topic is not subscribed".format(tar_topic_id, tar_table_id))
-            return
+            self.logger.warning("Target Table / Topic is not subscribed", extra=self.log_context)
+            return False
         # Loader Setting
         self.depositor.set_current_topic_table(src_topic_id, src_table_id)
         self.archiver.set_current_topic_table(src_topic_id, src_table_id)
         header_ref = self.depositor.get_table_header()
         if not header_ref:
-            logging.warning("{}-{}: No Table Header Found, Quit".format(src_topic_id, src_table_id))
-            return
+            self.logger.warning("No Table Header Found", extra=self.log_context)
+            return False
         header_dict = self.depositor.get_dict_from_ref(header_ref)
         load_type = load_config.get('load_type', 'unknown')
         # Initial Loading
         if load_type == 'initial':
             # Header Load
+            self.logger.info("Header to be loaded", extra=self.log_context)
             self._header_load(header_dict, tar_topic_id, tar_table_id)
             # Get Start key or End key
             start_doc_ref, end_doc_ref, start_merge_ref = None, None, None
@@ -137,31 +141,39 @@ class Loader(Transfer):
             for end_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial'], reverse=True):
                 break
             if not start_doc_ref or not end_doc_ref:
-                logging.warning("{}-{}: No Data to load".format(tar_topic_id, tar_table_id))
-                return
+                self.logger.info("No data to load", extra=self.log_context)
+                return False
             start_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(start_doc_ref))
             end_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(end_doc_ref))
             # Case 1: Only Package Load Process:
             if not start_merge_ref:
                 package_load_config = load_config.copy()
                 package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': end_key})
+                self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
             # Case 2: Pacakge Load + Normal Load + Package Load
             else:
                 start_merge_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(start_merge_ref))
                 package_load_config = load_config.copy()
                 package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': start_merge_key})
+                self.logger.info("Package load range {}-{}".format(start_key, start_merge_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
+                self.logger.info("Document load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._normal_load(header_dict, tar_topic_id, tar_table_id, start_merge_key, end_key)
                 package_load_config.update({'load_type': 'package', 'start_key': start_merge_key, 'end_key': end_key})
+                self.logger.info("Package load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
         elif load_type == 'header':
+            self.logger.info("Header to be loaded", extra=self.log_context)
             self._header_load(header_dict, tar_topic_id, tar_table_id)
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
+            self.logger.info("Document load range {}-{}".format(start_key, end_key), extra=self.log_context)
             self._normal_load(header_dict, tar_topic_id, tar_table_id, start_key, end_key)
         elif load_type == 'package':
+            start_key, end_key = load_config['start_key'], load_config['end_key']
+            self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
             self._package_load(header_dict, load_config, tar_topic_id, tar_table_id)
         else:
-            logging.warning("{}-{}: load type {} not supported".format(src_topic_id, src_table_id, load_type))
-            return
+            self.logger.error("load type {} not supported".format(load_type), extra=self.log_context)
+            return True

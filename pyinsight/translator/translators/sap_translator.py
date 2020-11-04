@@ -1,8 +1,8 @@
 import json
 import logging
-from pyinsight import translator
+from ..translator import Translator
 
-class SapTranslator(translator.Translator):
+class SapTranslator(Translator):
     def __init__(self):
         super().__init__()
         self.spec_list = ['slt', 'ddic']

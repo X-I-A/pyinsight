@@ -8,8 +8,9 @@ import datetime
 import logging
 from .exceptions import InsightDataSpecError
 
-MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 3 ** 20)
-PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 25)
+MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 2 ** 18)
+PACKAGE_SIZE = os.environ.get('INSIGHT_PACKAGE_SIZE', 2 ** 26)
+LOGGING_LEVEL = os.environ.get('INSIGHT_LOGGING_LEVEL', logging.WARNING)
 
 """
 Filter Section :
@@ -102,6 +103,7 @@ def encoder(data, src_encode, tar_encode):
 # Data Cut and Send
 X_I_HEADER = ['topic_id', 'table_id', 'aged', 'start_seq', 'age', 'end_age',
               'data_encode', 'data_format', 'data_store', 'data_spec']
+
 def get_data_dict_by_field(input_data, field_name):
     result_dict = dict()
     for line in input_data:

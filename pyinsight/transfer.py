@@ -39,6 +39,7 @@ class Transfer(Action):
     # Segment Level and Column Level Filter
     def dispatch_data(self, dispatcher: Dispatcher, header, body_data, tar_topic_id=None, tar_table_id=None):
         destinations = dispatcher.get_destinations(header['topic_id'], header['table_id'])
+        self.log_context['context'] = header['topic_id'] + '-' + header['table_id']
         if tar_topic_id and tar_table_id:
             destinations = [d for d in destinations if d['topic_id'] == tar_topic_id and d['table_id'] == tar_table_id]
         # Column Level Filter
@@ -70,6 +71,7 @@ class Transfer(Action):
                 for f, description in header['portait'].items():
                     pass
             # Segement Check Pass, There is some data to be sent
+            self.logger.info("Read archive {}".format(header['merge_key']), extra=self.log_context)
             self.archiver.load_archive(header['merge_key'], field_list)
             tar_file_data = self.archiver.get_data()
             return dispatcher.dispatch(header, None, tar_file_data, tar_topic_id, tar_table_id)

@@ -1,9 +1,9 @@
 import os
 import json
-from pyinsight import messager
-from pyinsight.utils.core import *
+from ..messager import Messager
+from pyinsight.utils.core import get_current_timestamp
 
-class DummyMessager(messager.Messager):
+class DummyMessager(Messager):
     def __init__(self):
         super().__init__()
         self.home_path = os.path.join(os.path.expanduser('~'), 'insight-messager')

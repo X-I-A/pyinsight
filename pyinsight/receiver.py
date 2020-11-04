@@ -1,11 +1,13 @@
 import os
 import json
+import logging
 import threading
 import pyinsight
-from pyinsight.utils.exceptions import *
+from pyinsight.action import backlog
+from pyinsight.utils.exceptions import InsightDataSpecError
 from pyinsight.transfer import Transfer
-from pyinsight.utils.validation import *
-from pyinsight.utils.core import *
+from pyinsight.utils.validation import x_i_proto_check
+from pyinsight.utils.core import get_merge_level, get_data_chunk
 
 
 __all__ = ['Receiver']
@@ -14,16 +16,17 @@ __all__ = ['Receiver']
 Receive and Dispatch Message, Save the message to Dispositor and Archiver
 """
 class Receiver(Transfer):
+    @backlog
     def receive_data(self, header, data):
         # 1. Receive and check
         # 1.1 Checks
-        if not x_i_proto_check(header, data):
-            return
+        x_i_proto_check(header, data)
         # 1.2 Context Setting
         self.depositor.set_current_topic_table(header['topic_id'], header['table_id'])
         self.archiver.set_current_topic_table(header['topic_id'], header['table_id'])
         client_set = self.subscription_dict.get((header['topic_id'], header['table_id']), [])
         dispatch_body_data = list()
+        self.log_context['context'] = '-'.join([self.depositor.topic_id, self.depositor.table_id])
         # 1.3 Set Some useful flags for no-header items
         if int(header.get('age', 0)) != 1:
             merge_key = str(int(header['start_seq']) + int(header.get('age',0)))
@@ -43,8 +46,9 @@ class Receiver(Transfer):
             active_translator = self.translators.get('x-i-a')
         # Case 3: data_spec found but there is no translator
         if not active_translator:
-            logging.error("Data Specification {} Not Supported".format(header['data_spec']))
-            return
+            self.logger.error("No translator for data_spec {}".format(header['data_spec']), extra=self.log_context)
+            raise InsightDataSpecError("INS-000003")
+        self.logger.info("Using translator {}".format(active_translator.__class__.__name__), extra=self.log_context)
         # 2.1 Depositor Scope
         if header['data_store'] == 'body':
             prepared_data = active_translator.get_depositor_data(data, header['data_encode'],
@@ -66,13 +70,13 @@ class Receiver(Transfer):
             header['data_encode'] = 'flat'
             for chunk_header in get_data_chunk(raw_data, header, self.merge_size):
                 chunk_data = chunk_header.pop('data')
+                self.logger.info("Receiving chunk {}-{}".format(header['start_seq'], header.get('age', 0)),
+                                 extra=self.log_context)
                 self.receive_data(chunk_header, chunk_data)
-            # Task is splitted, no need to continue for the current task
-            return
+            return True
         else:
-            logging.error("Data Store Type {} Not Supported".format(header['data_store']))
-            return
-        # 2.3 Set the data spec to X-I-A
+            raise InsightDataSpecError("INS-000004")
+        # 2.3 Data spec is x-i-a after translator
         header['data_spec'] = 'x-i-a'
         # 3. Send client messages via multi-threading
         handlers = list()
@@ -82,18 +86,21 @@ class Receiver(Transfer):
                 dispatcher.set_merge_size(self.merge_size)
                 cur_handler = threading.Thread(target=self.dispatch_data,
                                                args=(dispatcher, header, dispatch_body_data))
+                self.logger.info("Dispatching to client {}".format(client_id), extra=self.log_context)
                 cur_handler.start()
                 handlers.append(cur_handler)
             else:
-                logging.warning("Dispatcher {} - Missing or Type Error".format(client_id))
-        # 4. Document to be saved by Depositor / Archiver - Synchronized Update
+                self.logger.warning("No dispatcher for client {}".format(client_id), extra=self.log_context)
+        # 4. Document to be saved by Depositor - Synchronized Update
+        self.logger.info("Deposit document", extra=self.log_context)
         self.depositor.add_document(header, prepared_data)
         self.archiver.remove_data()
         # 5. Check if the first level merge process should be triggered
         if header.get('merge_level', 0) > 0 and header.get('merge_status', '') != 'header':
+            self.logger.info("Trigger Merging", extra=self.log_context)
             self.messager.trigger_merge(header['topic_id'], header['table_id'],
                                         header['merge_key'], 1)
         # 6. Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()
-        return
+        return True
