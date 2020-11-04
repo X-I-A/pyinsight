@@ -149,30 +149,30 @@ class Loader(Transfer):
             if not start_merge_ref:
                 package_load_config = load_config.copy()
                 package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': end_key})
-                self.logger.info("Package {}-{} is loading".format(start_key, end_key), extra=self.log_context)
+                self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
             # Case 2: Pacakge Load + Normal Load + Package Load
             else:
                 start_merge_key = get_sort_key_from_dict(self.depositor.get_dict_from_ref(start_merge_ref))
                 package_load_config = load_config.copy()
                 package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': start_merge_key})
-                self.logger.info("Package {}-{} is loading".format(start_key, start_merge_key), extra=self.log_context)
+                self.logger.info("Package load range {}-{}".format(start_key, start_merge_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
-                self.logger.info("Document {}-{} is loading".format(start_merge_key, end_key), extra=self.log_context)
+                self.logger.info("Document load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._normal_load(header_dict, tar_topic_id, tar_table_id, start_merge_key, end_key)
                 package_load_config.update({'load_type': 'package', 'start_key': start_merge_key, 'end_key': end_key})
-                self.logger.info("Package {}-{} is loading".format(start_merge_key, end_key), extra=self.log_context)
+                self.logger.info("Package load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config, tar_topic_id, tar_table_id)
         elif load_type == 'header':
             self.logger.info("Header to be loaded", extra=self.log_context)
             self._header_load(header_dict, tar_topic_id, tar_table_id)
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
-            self.logger.info("Document {}-{} is loading".format(start_key, end_key), extra=self.log_context)
+            self.logger.info("Document load range {}-{}".format(start_key, end_key), extra=self.log_context)
             self._normal_load(header_dict, tar_topic_id, tar_table_id, start_key, end_key)
         elif load_type == 'package':
             start_key, end_key = load_config['start_key'], load_config['end_key']
-            self.logger.info("Package {}-{} is loading".format(start_key, end_key), extra=self.log_context)
+            self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
             self._package_load(header_dict, load_config, tar_topic_id, tar_table_id)
         else:
             self.logger.error("load type {} not supported".format(load_type), extra=self.log_context)

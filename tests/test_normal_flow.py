@@ -46,6 +46,7 @@ def test_simple_normal_flow():
     r.archiver.init_topic(topic_id)
 
     m.set_merge_size(2 ** 12)
+    p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
     header, body = get_normal_header()

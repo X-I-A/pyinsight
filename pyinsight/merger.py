@@ -186,7 +186,7 @@ class AgeMerger(Merger):
                 merge_list.append((base_doc, False, start_age, end_age, data_list))
             # An isolated and clean all Merge and all Delete
             for merge_item in merge_list:
-                self.logger.info("Merging {}-{}: {} docs".format(merge_item[2], merge_item[3], len(merge_item[4])),
+                self.logger.info("Merging {}-{}: {} records".format(merge_item[2], merge_item[3], len(merge_item[4])),
                                  extra=self.log_context)
             self._merge_and_delete_document(merge_level, merge_list, del_list)
         # Trigger the merge of next level
@@ -286,7 +286,7 @@ class NormalMerger(Merger):
             merge_list.append((base_doc, False, start_time, end_time, data_list))
         # An isolated and clean all Merge and all Delete
         for merge_item in merge_list:
-            self.logger.info("Merging {}-{}: {} docs".format(merge_item[2], merge_item[3], len(merge_item[4])),
+            self.logger.info("Merging {}-{}: {} records".format(merge_item[2], merge_item[3], len(merge_item[4])),
                              extra=self.log_context)
         self._merge_and_delete_document(merge_level, merge_list, del_list)
         # Trigger the merge of next level
