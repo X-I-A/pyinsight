@@ -46,4 +46,4 @@ __all__ = insight.__all__ \
         + messager.__all__ \
         + translator.__all__
 
-__version__ = "0.0.12"
+__version__ = "0.1.1"
