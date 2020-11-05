@@ -5,26 +5,6 @@ import pytest
 from pyinsight.utils.core import get_current_timestamp, get_merge_level, encoder
 from pyinsight import Receiver, Merger, Packager, Cleaner, Loader
 
-def get_normal_header():
-    start_seq = get_current_timestamp()
-    with open(os.path.join('.', 'input', 'person_simple', 'schema.json'), 'r') as f:
-        body = json.load(f).pop('columns')
-        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'age': '1', 'merge_level': 9, 'merge_status': 'header', 'merge_key': start_seq,
-                  'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
-        return header, body
-
-def get_normal_document(src_id):
-    src_file = str(src_id).zfill(6) + '.json'
-    start_seq = get_current_timestamp()
-    with open(os.path.join('.', 'input', 'person_simple', src_file), 'r') as f:
-        body = json.load(f)
-        merge_key = start_seq
-        header = {'topic_id': 'test-004', 'table_id': 'person_simple', 'start_seq': start_seq,
-                  'merge_status': 'initial', 'merge_key': merge_key,
-                  'data_encode': 'flat', 'data_format': 'record', 'data_store': 'body'}
-        header['merge_level'] = get_merge_level(merge_key)
-    return header, body
 
 def get_normal_file_document():
     with open(os.path.join('.', 'input', 'insight_formats', 'normal_package.packaged'), 'r') as f:
@@ -50,17 +30,11 @@ def test_simple_normal_flow():
     p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
-    header, body = get_normal_header()
-    r.messager.publish(topic_id, header, body)
-    for x in range(1, 51):
-        header, body = get_normal_document(x)
-        r.messager.publish(topic_id, header, body)
 
     # Step 2: Receive Data
     for msg in r.messager.pull(topic_id):
         header, body, id = r.messager.extract_message_content(msg)
         r.receive_data(header, body)
-        r.messager.ack(topic_id, id)
 
     # Step 3: Merge Data
     for x in range(18):
@@ -70,7 +44,7 @@ def test_simple_normal_flow():
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
-    p.messager.trigger_package(header['topic_id'], header['table_id'])
+    p.messager.trigger_package(topic_id, header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
         p.package_data(header['topic_id'], header['table_id'])
@@ -86,7 +60,7 @@ def test_simple_normal_flow():
             total_size += len(r.archiver.get_data())
         else:
             total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
-    assert total_size == 50000
+    assert total_size == 49000
 
     # Step 6: Load Test
     # Client Configurations
@@ -119,7 +93,7 @@ def test_simple_normal_flow():
         for line in doc_data:
             assert 'height' not in line
         total_size += len(doc_data)
-    assert total_size == 8475
+    assert total_size == 8296
 
     # Step 7: Clean Test Set
     c.remove_all_data('clnt003', 'tall_man')
@@ -145,18 +119,12 @@ def test_gapped_normal_flow():
     p.set_package_size(2 ** 20)
 
     # Step 1: Read Test data and send message
-    header, body = get_normal_header()
-    r.messager.publish(topic_id, header, body)
-    for x in range(1, 51):
-        header, body = get_normal_document(x)
-        r.messager.publish(topic_id, header, body)
 
     # Step 2.1: Receive Data
     for msg in r.messager.pull(topic_id):
         header, body, id = r.messager.extract_message_content(msg)
         if int(header['start_seq']) % 8 != 0:
             r.receive_data(header, body)
-            r.messager.ack(topic_id, id)
 
     # Step 2.2: Merge Data
     for x in range(18):
@@ -169,7 +137,6 @@ def test_gapped_normal_flow():
         header, body, id = r.messager.extract_message_content(msg)
         if int(header['start_seq']) % 8 == 0:
             r.receive_data(header, body)
-            r.messager.ack(topic_id, id)
 
     # Step 3.2: Merge Data
     for x in range(18):
@@ -179,7 +146,7 @@ def test_gapped_normal_flow():
             m.messager.ack(m.messager.topic_merger, id)
 
     # Step 4: Package Data
-    p.messager.trigger_package(header['topic_id'], header['table_id'])
+    p.messager.trigger_package(topic_id, header['table_id'])
     for msg in p.messager.pull(p.messager.topic_packager):
         header, data, id = p.messager.extract_message_content(msg)
         p.package_data(header['topic_id'], header['table_id'])
@@ -195,7 +162,7 @@ def test_gapped_normal_flow():
             total_size += len(r.archiver.get_data())
         else:
             total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
-    assert total_size == 50000
+    assert total_size == 49000
 
     # Step 6: Clean Test Set
     c.remove_all_data('test-004', 'person_simple')
@@ -225,19 +192,11 @@ def test_dispatch_normal_flow():
     r.set_merge_size(2 ** 12)
 
     # Step 1: Read Test data and send message
-    header, body = get_normal_header()
-    r.messager.publish(topic_id, header, body)
-    for x in range(1, 3):
-        header, body = get_normal_document(x)
-        r.messager.publish(topic_id, header, body)
-    header, body = get_normal_file_document()
-    r.messager.publish(topic_id, header, body)
 
     # Step 2: Receive Message Data
     for msg in r.messager.pull(topic_id):
         header, body, id = r.messager.extract_message_content(msg)
         r.receive_data(header, body)
-        r.messager.ack(topic_id, id)
 
     # Step 3: Receive Client Data
     r1 = Receiver()
@@ -257,13 +216,13 @@ def test_dispatch_normal_flow():
     for doc_ref in r1.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
         doc_dict = r1.depositor.get_dict_from_ref(doc_ref)
         total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
-    assert total_size == 1380
+    assert total_size == 8296
 
     total_size = 0
     for doc_ref in r2.depositor.get_stream_by_sort_key(['initial', 'merged', 'packaged']):
         doc_dict = r2.depositor.get_dict_from_ref(doc_ref)
         total_size += len(json.loads(encoder(doc_dict['data'], r.depositor.data_encode, 'flat')))
-    assert total_size == 1499
+    assert total_size == 9607
 
     # Step 5: Clean all data
     for msg in r.messager.pull(m.messager.topic_merger):

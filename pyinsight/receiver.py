@@ -7,7 +7,7 @@ from pyinsight.action import backlog
 from pyinsight.utils.exceptions import InsightDataSpecError
 from pyinsight.transfer import Transfer
 from pyinsight.utils.validation import x_i_proto_check
-from pyinsight.utils.core import get_merge_level, get_data_chunk
+from pyinsight.utils.core import get_merge_level, get_data_chunk, encoder
 
 
 __all__ = ['Receiver']
@@ -37,35 +37,19 @@ class Receiver(Transfer):
             self.messager.trigger_clean(header['topic_id'], header['table_id'], header['start_seq'])
             header['merge_status'] = 'header'
             header['merge_level'] = 9
-        # 2. Translation
-        # Case 1: data_spec found and translator found
-        if 'data_spec' in header:
-            active_translator = self.translators.get(header['data_spec'], None)
-        # Case 2: data_spec found XIA Translator can handle the case that data_spec is not defined
-        else:
-            active_translator = self.translators.get('x-i-a')
-        # Case 3: data_spec found but there is no translator
-        if not active_translator:
-            self.logger.error("No translator for data_spec {}".format(header['data_spec']), extra=self.log_context)
-            raise InsightDataSpecError("INS-000003")
-        self.logger.info("Using translator {}".format(active_translator.__class__.__name__), extra=self.log_context)
+        # 2. Encoder
         # 2.1 Depositor Scope
         if header['data_store'] == 'body':
-            prepared_data = active_translator.get_depositor_data(data, header['data_encode'],
-                                                                 self.depositor.data_encode, header)
+            prepared_data = encoder(data, header['data_encode'], self.depositor.data_encode)
             header['data_encode'] = self.depositor.data_encode
             if client_set:
-                dispatch_body_data = json.loads(active_translator.encoder(prepared_data, header['data_encode'], 'flat'))
+                dispatch_body_data = json.loads(encoder(prepared_data, header['data_encode'], 'flat'))
         # 2.2 Archiver Scope
         elif header['data_store'] == 'file':
             self.archiver.set_merge_key(header['merge_key'])
             # Step 1: Get the dict data of 'x-i-a' specification
-            if header['data_spec'] == 'x-i-a':
-                raw_data = self.archiver.read_data_from_file(header['data_encode'], header['data_format'], data)
-            else:
-                raw_data = active_translator.get_archive_data(self.archiver.read_data_from_file(data), header)
+            raw_data = self.archiver.read_data_from_file(header['data_encode'], header['data_format'], data)
             # Step 2: Cut the data and reload the receive data in "Depositor Mode"
-            header['data_spec'] = 'x-i-a'
             header['data_store'] = 'body'
             header['data_encode'] = 'flat'
             for chunk_header in get_data_chunk(raw_data, header, self.merge_size):
@@ -76,8 +60,6 @@ class Receiver(Transfer):
             return True
         else:
             raise InsightDataSpecError("INS-000004")
-        # 2.3 Data spec is x-i-a after translator
-        header['data_spec'] = 'x-i-a'
         # 3. Send client messages via multi-threading
         handlers = list()
         for client_id in list(client_set):

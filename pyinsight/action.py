@@ -9,7 +9,6 @@ from pyinsight.utils.core import encoder, MERGE_SIZE, PACKAGE_SIZE
 from pyinsight.messager.messagers.dummy_messager import DummyMessager
 from pyinsight.depositor.depositors import FileDepositor
 from pyinsight.archiver.archivers import FileArchiver
-from pyinsight.translator.translators import SapTranslator, XIATranslator
 
 __all__ = ['Action']
 
@@ -44,9 +43,8 @@ class Action(Insight):
     Messager : Send / Parse Message - Default : Local Filesystem based
     Depositor : Document Management System - Default : Local Filesystem based
     Archive : Package Management System - Default : Local Filesystem based
-    Translators : A list of customized translator to change the data_spec to xia
     """
-    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
+    def __init__(self, messager=None, depositor=None, archiver=None):
         super().__init__()
         self.merge_size = MERGE_SIZE
         self.package_size = PACKAGE_SIZE
@@ -85,21 +83,6 @@ class Action(Insight):
             self.logger.error("The Choosen Archiver has a wrong Type", extra=self.log_context)
             raise InsightTypeError("INS-000007")
 
-        # Standard Translators
-        self.translators = dict()
-        xia_trans = XIATranslator()
-        sap_trans = SapTranslator()
-        for std_trans in [xia_trans, sap_trans]:
-            for spec in std_trans.spec_list:
-                self.translators[spec] = std_trans
-        # Customized Translators (can overwrite standard ones)
-        for cust_trans in translators:
-            if isinstance(cust_trans, pyinsight.translator.Translator):
-                for spec in cust_trans.spec_list:
-                    self.translators[spec] = cust_trans
-            else:
-                self.logger.error("The Choosen Translator has a wrong Type", extra=self.log_context)
-                raise InsightTypeError("INS-000008")
 
     def set_merge_size(self, merge_size):
         self.merge_size = merge_size
