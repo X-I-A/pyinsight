@@ -8,8 +8,8 @@ from pyinsight.utils.core import filter_table_column, get_fields_from_filter
 __all__ = ['Transfer']
 
 class Transfer(Action):
-    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
-        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+    def __init__(self, messager=None, depositor=None, archiver=None):
+        super().__init__(messager=None, depositor=None, archiver=None)
         self.client_dict = dict() # {client_id: dispatcher}
         self.subscription_dict = dict() # {tuple(topic_id, table_id) : set{client_id1, client_id2}}
 

@@ -43,7 +43,7 @@ class FileDepositor(Depositor):
         if content.get('age', '') == '1':
             content['age'] = 1
             filename = content['start_seq'] + '.header'
-            content['aged'] = content.get('aged', '') == 'true'
+            content['aged'] = content.get('aged', '').lower() == 'true'
         # Case 2 : Aged Document
         elif 'age' in content:
             for key in [k for k in ['age', 'end_age', 'segment_start_age'] if k in content]:

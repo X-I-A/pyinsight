@@ -15,8 +15,8 @@ class Dispatcher(Action):
     * Value: List of destinations
     * Destinations: topic_id, table_id, fields, filters (NDF)
     """
-    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
-        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+    def __init__(self, messager=None, depositor=None, archiver=None):
+        super().__init__(messager=None, depositor=None, archiver=None)
         self.messager_only = False
         self.subscription = dict()
 

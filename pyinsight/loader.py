@@ -25,8 +25,8 @@ class Loader(Transfer):
     * create package load chain if met
     Best Pratice: Deploy un loader per client_id
     """
-    def __init__(self, messager=None, depositor=None, archiver=None, translators=list()):
-        super().__init__(messager=None, depositor=None, archiver=None, translators=list())
+    def __init__(self, messager=None, depositor=None, archiver=None):
+        super().__init__(messager=None, depositor=None, archiver=None)
         self.dispatcher = None
 
     # Head Load: Simple Sent
