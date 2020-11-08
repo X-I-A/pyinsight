@@ -8,6 +8,7 @@ INS-000005: Messager Type Error
 INS-000006: Depositor Type Error
 INS-000007: Archiver Type Error
 INS-000008: Translator Type Error
+INS-000009: List Format Error
 """
 class InsightTypeError(Exception): pass
 class InsightEncodeError(Exception): pass

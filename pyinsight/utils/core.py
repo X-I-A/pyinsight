@@ -6,6 +6,7 @@ import hashlib
 import time
 import datetime
 import logging
+from functools import reduce
 from .exceptions import InsightDataSpecError
 
 MERGE_SIZE = os.environ.get('INSIGHT_MERGE_SIZE', 2 ** 18)
@@ -80,7 +81,7 @@ def filter_table(dict_list: list, field_list=list(), filter_list=list(list(list(
     else:
         return filter_table_column(filter_table_dnf(dict_list, filter_list), field_list)
 
-# Allowed Transformation Matrix ['flat', 'b54g', 'gzip']
+# Insight Module support a simplified encoder matrix ['flat', 'b54g', 'gzip']
 def encoder(data, src_encode, tar_encode):
     if src_encode == tar_encode:
         return data
@@ -100,6 +101,22 @@ def encoder(data, src_encode, tar_encode):
     else:
         logging.error('Data Encode {}-{} not implemented'.format(src_encode, tar_encode))
 
+# Record / List Format conversion (in-memory)
+def record_to_list(data: list) -> dict:
+    if not data:
+        return dict()
+    field_list = reduce(lambda a, b: set(a) | set(b), data)
+    return {k: [x.get(k, None) for x in data] for k in field_list}
+
+def list_to_record(data: dict) -> list:
+    if not data:
+        return list()
+    line_nbs = [len(value) for key, value in data.items()]
+    if len(set(line_nbs)) > 1:
+        logging.error("list must have identical line numbers")
+        raise InsightDataSpecError("INS-000008")
+    return [{key: value[i] for key, value in data.items() if value[i] is not None} for i in range(line_nbs[0])]
+
 # Data Cut and Send
 X_I_HEADER = ['topic_id', 'table_id', 'aged', 'start_seq', 'age', 'end_age',
               'data_encode', 'data_format', 'data_store', 'data_spec']
@@ -111,7 +128,6 @@ def get_data_dict_by_field(input_data, field_name):
             result_dict[line[field_name]].append(line)
         else:
             result_dict[line[field_name]] = [line]
-        # result_dict[line[field_name]] = result_dict.get(line[field_name], list()).append(line)
     return result_dict
 
 def get_data_chunk(input_data: list, input_header: dict, merge_size=MERGE_SIZE):

@@ -12,6 +12,7 @@ from pyinsight import worker
 from pyinsight.archiver import archiver
 from pyinsight.depositor import depositor
 from pyinsight.messager import messager
+from pyinsight.sender import sender
 
 # Object Import
 from pyinsight.insight import Insight
@@ -27,6 +28,7 @@ from pyinsight.worker import Worker
 from pyinsight.archiver.archiver import Archiver
 from pyinsight.depositor.depositor import Depositor
 from pyinsight.messager.messager import Messager
+from pyinsight.sender.sender import Sender
 
 # Element Listing
 __all__ = insight.__all__ \
@@ -41,6 +43,7 @@ __all__ = insight.__all__ \
     + worker.__all__ \
     + archiver.__all__ \
     + depositor.__all__ \
-    + messager.__all__
+    + messager.__all__ \
+    + sender.__all__
 
-__version__ = "0.1.2"
+__version__ = "0.1.5"
