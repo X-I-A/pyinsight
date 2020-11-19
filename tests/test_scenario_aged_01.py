@@ -14,7 +14,7 @@ from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
 
 # Insight Level Settings
-Insight.log_level = logging.INFO
+# Insight.log_level = logging.INFO
 
 messager = BasicPublisher()
 Insight.set_internal_channel(messager=messager,
@@ -74,11 +74,13 @@ load_config2 = {
     'store_path': os.path.join('.', 'output', 'storer') + os.path.sep
 }
 
+"""
 def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
     header, data, msg_id = s.unpack_message(message)
     header.pop('data_spec')
     if merger.merge_data(**header):
         subscriber.ack(source, subscription_id, msg_id)
+"""
 
 def test_simple_flow():
     """Simple Test Flow
@@ -126,11 +128,11 @@ def test_simple_flow():
     dispatcher.receive_data(normal_header, normal_data_body)
 
     # Merge message streaming
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
-    loop.run_until_complete(asyncio.wait([merge_task]))
-    loop.close()
+    for x in range(10):
+        for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
+            header, data, msg_id = subscriber.unpack_message(msg)
+            if merger.merge_data(**header):
+                subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
     packager.package_size = 2 ** 16
     packager.package_data('scenario_01', 'normal_data')
@@ -154,12 +156,12 @@ def test_simple_flow():
     age_header['data_spec'] = 'x-i-a'
     dispatcher.receive_data(age_header, age_data_body)
 
-    # Merge message streaming
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
-    loop.run_until_complete(asyncio.wait([merge_task]))
-    loop.close()
+    # Merge message
+    for x in range(10):
+        for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
+            header, data, msg_id = subscriber.unpack_message(msg)
+            if merger.merge_data(**header):
+                subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
     for msg in subscriber.pull(Insight.channel, Insight.topic_cleaner):
         header, data, msg_id = subscriber.unpack_message(msg)
@@ -178,20 +180,20 @@ def test_simple_flow():
     age_header['data_spec'] = 'x-i-a'
     dispatcher.receive_data(age_header, age_data_body)
 
-    # Merge message streaming
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
-    loop.run_until_complete(asyncio.wait([merge_task]))
-    loop.close()
+    # Merge message
+    for x in range(10):
+        for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
+            header, data, msg_id = subscriber.unpack_message(msg)
+            if merger.merge_data(**header):
+                subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
     packager.package_data('scenario_01', 'aged_data')
 
     # Check data
     header_ref = depositor.get_table_header()
     header_dict = depositor.get_header_from_ref(header_ref)
-    # assert header_dict['merged_lines'] == 1962
-    # assert header_dict['packaged_lines'] == 1839
+    assert header_dict['merged_lines'] == 1962
+    assert header_dict['packaged_lines'] == 1839
 
     # Load data 1
     msg_loader.load(load_config1)
