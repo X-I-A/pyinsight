@@ -77,13 +77,7 @@ def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
     if merger.merge_data(**header):
         subscriber.ack(source, subscription_id, msg_id)
 
-def test_simple_flow():
-    """Simple Test Flow
-
-    This test will receive data, trigger merge process, trigger package process, dispatch data and then clean the data
-
-    """
-    # Purger
+def purger():
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         msg_id = subscriber.unpack_message(msg)[2]
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
@@ -102,6 +96,7 @@ def test_simple_flow():
 
     cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')
 
+def normal_data_test():
     # Normal Data Header Receive
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
@@ -132,6 +127,8 @@ def test_simple_flow():
     packager.package_size = 2 ** 16
     packager.package_data('scenario_01', 'normal_data')
 
+
+def aged_data_test():
     # Aged Data Receive
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
@@ -200,6 +197,8 @@ def test_simple_flow():
     assert header_dict['merged_lines'] == merged_c
     assert header_dict['packaged_lines'] == packaged_c
 
+def load_data_test():
+
     # Load data 1
     msg_loader.load(load_config1)
 
@@ -251,4 +250,25 @@ def test_simple_flow():
         header, data, msg_id = subscriber.unpack_message(msg)
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
+
+def final_clean():
     cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')
+    cleaner.clean_data('scenario_01', 'aged_data', '99991231000000000000')
+    cleaner.clean_data('test_01', 'aged_01', '99991231000000000000')
+    cleaner.clean_data('test_02', 'aged_02', '99991231000000000000')
+
+
+def test_simple_flow():
+    """Simple Test Flow
+
+    This test will receive data, trigger merge process, trigger package process, dispatch data and then clean the data
+
+    """
+    purger()
+    normal_data_test()
+    aged_data_test()
+    aged_data_test()
+    load_data_test()
+    final_clean()
+
+

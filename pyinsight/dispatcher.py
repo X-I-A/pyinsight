@@ -103,6 +103,7 @@ class Dispatcher(Insight):
             if active_storer is None:
                 self.logger.error("No storer for store type {}".format(header['data_store']), extra=self.log_context)
                 raise ValueError("INS-000005")
+            header['data_store'] = 'body'
             tar_full_data = json.loads(gzip.decompress(active_storer.read(data)).decode())
         elif isinstance(data, list):
             tar_full_data = data
