@@ -14,7 +14,7 @@ from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
 
 # Insight Level Settings
-# Insight.log_level = logging.INFO
+Insight.log_level = logging.INFO
 
 messager = BasicPublisher()
 Insight.set_internal_channel(messager=messager,
@@ -169,6 +169,12 @@ def test_simple_flow():
 
     packager.package_data('scenario_01', 'aged_data')
 
+    # Check data
+    header_ref = depositor.get_table_header()
+    header_dict = depositor.get_header_from_ref(header_ref)
+    assert header_dict['merged_lines'] == 1000
+    assert header_dict['packaged_lines'] == 911
+
     # Second Data Receive
     with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
         data_body = json.loads(f.read().decode())
@@ -192,7 +198,7 @@ def test_simple_flow():
     # Check data
     header_ref = depositor.get_table_header()
     header_dict = depositor.get_header_from_ref(header_ref)
-    # assert header_dict['merged_lines'] == 1962
+    assert header_dict['merged_lines'] == 1962
     assert header_dict['packaged_lines'] == 1839
 
     # Load data 1
