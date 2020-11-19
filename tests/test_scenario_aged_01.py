@@ -267,8 +267,8 @@ def test_simple_flow():
     purger()
     normal_data_test()
     aged_data_test()
-    aged_data_test()
     load_data_test()
+    aged_data_test()
     final_clean()
 
 
