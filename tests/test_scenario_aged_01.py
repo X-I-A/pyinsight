@@ -4,6 +4,7 @@ import base64
 import gzip
 import asyncio
 import pytest
+import logging
 from xialib import ListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
 from pyinsight.packager import Packager
 from pyinsight.merger import Merger
@@ -220,8 +221,14 @@ def load_data_test():
     counter = 0
     for doc_ref in depositor.get_stream_by_sort_key(status_list=['initial']):
         doc_dict = depositor.get_header_from_ref(doc_ref)
+        doc_data = depositor.get_data_from_header(doc_dict)
+        for line in doc_data:
+            logging.warning("{}-{}-{}-{}".format(line['id'],
+                                                 line.get('gender', ''),
+                                                 line.get('height', ''),
+                                                 line.get('weight', '')))
         counter += doc_dict['line_nb']
-    # assert counter == 999
+    assert counter == 999
 
     # Load data 2
     file_loader.load(load_config2)
