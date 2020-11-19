@@ -23,13 +23,12 @@ class Dispatcher(Insight):
         subscription_list (:obj:`dict`): Subscription Lists (
             key: source topic id, source table id
             value: list of dictionary (
-                key: publisher id
-                value: (target destination, target topic id, target table id, field list, filters list)))
+            key: publisher id
+            value: (target destination, target topic id, target table id, field list, filters list)))
 
     Notes:
         filter list must in the NDF form of list(list(list)))
     """
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.logger = logging.getLogger("Insight.Dispatcher")
@@ -92,7 +91,7 @@ class Dispatcher(Insight):
 
         Notes:
             This function is decorated by @backlog, which means all Exceptions will be sent to internal message topic:
-            backlog
+                backlog
         """
         src_topic_id = header['topic_id']
         src_table_id = header['table_id']
