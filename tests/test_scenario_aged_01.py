@@ -250,3 +250,5 @@ def test_simple_flow():
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         header, data, msg_id = subscriber.unpack_message(msg)
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
+
+    cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')
