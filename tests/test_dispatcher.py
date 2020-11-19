@@ -1,7 +1,9 @@
 import os
 import json
+import gzip
+import base64
 import pytest
-from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer
+from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer, BasicSubscriber
 from pyinsight.dispatcher import Dispatcher
 
 """Simple Dispatcher Receive Body Message and Resend Body Message
@@ -44,7 +46,7 @@ def test_send_age_header(dispatcher):
         data_header = json.loads(f.read().decode())
         field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'aged_data', 'aged': 'True',
-                  'data_encode': 'flat', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
+                  'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
                   'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
     dispatcher.receive_data(header, field_data)
 
@@ -58,14 +60,57 @@ def test_send_age_document(dispatcher):
                       'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
     translator.compile(age_header, data_body)
     age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
+    age_header['data_spec'] = 'x-i-a'
     dispatcher.receive_data(age_header, age_data_body)
+
+def test_send_age_flat_document(dispatcher):
+    translator = BasicTranslator()
+
+    with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
+        data_body = json.loads(f.read().decode())
+        age_header = {'topic_id': 'test', 'table_id': 'aged_data',
+                      'data_encode': 'flat', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
+                      'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
+    translator.compile(age_header, data_body)
+    age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
+    age_header['data_spec'] = 'x-i-a'
+    age_data_flat = json.dumps(age_data_body, ensure_ascii=False)
+    dispatcher.receive_data(age_header, age_data_flat)
+
+def test_send_age_blob_document(dispatcher):
+    translator = BasicTranslator()
+
+    with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
+        data_body = json.loads(f.read().decode())
+        age_header = {'topic_id': 'test', 'table_id': 'aged_data',
+                      'data_encode': 'blob', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
+                      'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
+    translator.compile(age_header, data_body)
+    age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
+    age_header['data_spec'] = 'x-i-a'
+    age_data_blob = json.dumps(age_data_body, ensure_ascii=False).encode()
+    dispatcher.receive_data(age_header, age_data_blob)
+
+def test_send_age_gzip_document(dispatcher):
+    translator = BasicTranslator()
+
+    with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
+        data_body = json.loads(f.read().decode())
+        age_header = {'topic_id': 'test', 'table_id': 'aged_data',
+                      'data_encode': 'gzip', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
+                      'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
+    translator.compile(age_header, data_body)
+    age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
+    age_header['data_spec'] = 'x-i-a'
+    age_data_zipped = gzip.compress(json.dumps(age_data_body, ensure_ascii=False).encode())
+    dispatcher.receive_data(age_header, age_data_zipped)
 
 def test_send_normal_header(dispatcher):
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
         field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'normal_data',
-                  'data_encode': 'flat', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
+                  'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
                   'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
     dispatcher.receive_data(header, field_data)
 
@@ -79,14 +124,8 @@ def test_send_normal_document(dispatcher):
                          'start_seq': '20201113222500001234'}
     translator.compile(normal_header, data_body)
     normal_data_body = [translator.get_translated_line(item, start_seq='20201113222500001234') for item in data_body]
+    normal_header['data_spec'] = 'x-i-a'
     dispatcher.receive_data(normal_header, normal_data_body)
-
-def test_send_stored_document(dispatcher):
-    age_header = {'topic_id': 'test', 'table_id': 'aged_data',
-                  'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'file',
-                  'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
-    data_body = '000002.gz'
-    dispatcher.receive_data(age_header, data_body)
 
 def test_send_with_single_component(dispatcher):
     dispatcher_1 = Dispatcher(publishers=dispatcher.publishers, subscription_list=dispatcher.subscription_list)
@@ -109,9 +148,14 @@ def test_exceptions(dispatcher):
     with pytest.raises(TypeError):
         ko_disp = Dispatcher(publishers=ko_publishers, subscription_list=dispatcher.subscription_list)
 
-    with pytest.raises(ValueError):
-        age_header = {'topic_id': 'test', 'table_id': 'aged_data',
-                      'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'gcs',
-                      'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
-        data_body = '000002.gz'
-        dispatcher.receive_data(age_header, data_body)
+    age_header = {'topic_id': 'test', 'table_id': 'aged_data',
+                  'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'gcs',
+                  'age': '2', 'end_age': '100', 'start_seq': '20201113222500000000'}
+    data_body = '000002.gz'
+    dispatcher.receive_data(age_header, data_body)
+
+    subscriber = BasicSubscriber()
+    for msg in subscriber.pull(dispatcher.channel, dispatcher.topic_backlog):
+        header, data, msg_id = subscriber.unpack_message(msg)
+        assert header['table_id'] == 'INS-000005'
+        subscriber.ack(dispatcher.channel, dispatcher.topic_backlog, msg_id)

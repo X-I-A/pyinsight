@@ -1,5 +1,10 @@
 import os
+import gzip
+import json
 import logging
+import traceback
+import datetime
+from functools import wraps
 from typing import List, Dict, Any
 from xialib import BasicPublisher
 from xialib.storer import Storer
@@ -58,17 +63,22 @@ class Insight():
     log_level = logging.WARNING
     INSIGHT_FIELDS = ['_AGE', '_SEQ', '_NO', '_OP']
     messager = BasicPublisher()
-    channel = os.path.join(os.path.expanduser('~'), 'insight-messager')
-    topic_cockpit = 'insight-cockpit'
-    topic_cleaner = 'insight-cleaner'
-    topic_merger = 'insight-merger'
-    topic_packager = 'insight-packager'
-    topic_loader = 'insight-loader'
-    topic_backlog = 'insight-backlog'
+    if not os.path.exists(os.path.join('.', 'insight')):
+        os.mkdir(os.path.join('.', 'insight'))
+    if not os.path.exists(os.path.join('.', 'insight', 'messager')):
+        os.mkdir(os.path.join('.', 'insight', 'messager'))
+    channel = os.path.join(os.path.join('.', 'insight', 'messager'))
+    topic_cockpit = 'cockpit'
+    topic_cleaner = 'cleaner'
+    topic_merger = 'merger'
+    topic_packager = 'packager'
+    topic_loader = 'loader'
+    topic_backlog = 'backlog'
 
     def __init__(self, **kwargs):
         self.logger = logging.getLogger("Insight")
         self.log_context = {'context': ''}
+        self.logger.level = self.log_level
         if 'archiver' in kwargs:
             archiver = kwargs['archiver']
             if not isinstance(archiver, Archiver):
@@ -191,3 +201,39 @@ class Insight():
                        'table_id': load_config['src_table_id'],
                        'data_spec': 'internal'})
         return cls.messager.publish(cls.channel, cls.topic_loader, header, [])
+
+    @classmethod
+    def trigger_backlog(cls, header: dict, error_body: List[dict]):
+        return cls.messager.publish(cls.channel, cls.topic_backlog, header,
+                                    gzip.compress(json.dumps(error_body, ensure_ascii=False).encode()))
+
+def backlog(func):
+    """Send all errors to backlog
+
+    """
+    @wraps(func)
+    def wrapper(a, *args, **kwargs):
+        try:
+            return func(a, *args, **kwargs)
+        except Exception as e:
+            start_seq = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
+            exception_msg = format(e)
+            header = {'topic_id': 'insight',
+                      'table_id': 'GENERAL',
+                      'data_encode': 'gzip',
+                      'data_format': 'record',
+                      'data_spec': 'x-i-a',
+                      'data_store': 'body',
+                      'start_seq': start_seq}
+            body = [{'_SEQ': start_seq,
+                     'action_type': a.__class__.__name__,
+                     'function': func.__name__,
+                     'exception_type': e.__class__.__name__,
+                     'exception_msg': exception_msg,
+                     'args': args,
+                     'kwargs': kwargs,
+                     'trace': traceback.format_exc()}]
+            if format(e)[:3] in ['XIA', 'INS', 'XED', 'AGT']:
+                header['table_id'] = exception_msg
+            Insight.trigger_backlog(header, body)
+    return wrapper
