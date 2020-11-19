@@ -1,4 +1,5 @@
 import json
+import logging
 import gzip
 import hashlib
 from typing import List, Dict, Any
@@ -6,7 +7,7 @@ from xialib.archiver import Archiver
 from xialib.depositor import Depositor
 from xialib.publisher import Publisher
 from xialib.storer import Storer
-from pyinsight.insight import Insight
+from pyinsight.insight import Insight, backlog
 
 
 __all__ = ['Loader']
@@ -25,6 +26,14 @@ class Loader(Insight):
     """
     def __init__(self, depositor: Depositor, publishers: Dict[str, Publisher], **kwargs):
         super().__init__(depositor=depositor, publishers=publishers, **kwargs)
+        self.logger = logging.getLogger("Insight.Loader")
+        self.logger.level = self.log_level
+        if len(self.logger.handlers) == 0:
+            formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
+                                          '%(context)s:%(message)s')
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(formatter)
+            self.logger.addHandler(console_handler)
         self.active_storer = None
         self.active_publisher = None
 
@@ -46,10 +55,10 @@ class Loader(Insight):
             doc_dict = self.depositor.get_header_from_ref(doc_ref)
             # Case 1 : End of the Scope
             if doc_dict['sort_key'] > end_key:
-                return
+                return True  # pragma: no cover
             # Case 2 : Obsolete Document
             if doc_dict['merge_key'] < header_dict['start_seq']:
-                continue
+                continue  # pragma: no cover
             # Case 3: Normal -> Dispatch Document
             tar_header = doc_dict.copy()
             tar_body_data = self.depositor.get_data_from_header(tar_header)
@@ -76,15 +85,15 @@ class Loader(Insight):
             return True
         start_key = self.depositor.get_header_from_ref(start_doc_ref).get('sort_key')
         if start_key > end_key:
-            return True
+            return True  # pragma: no cover
         elif start_key != end_key:
             for end_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], end_key, True):
                 break
             if not end_doc_ref:
-                return True
+                return True  # pragma: no cover
             end_key = self.depositor.get_header_from_ref(end_doc_ref).get('sort_key')
         if start_key > end_key:
-            return True
+            return True  # pragma: no cover
         mid_key = str((int(start_key) + int(end_key)) // 2)
         # Step 1: If start == end, do the job
         if start_key == end_key:
@@ -92,7 +101,7 @@ class Loader(Insight):
                 tar_header = self.depositor.get_header_from_ref(doc_ref)
                 # Obsolete Document
                 if tar_header['merge_key'] < header_dict['start_seq']:
-                    return True
+                    return True  # pragma: no cover
                 needed_fields = list( set(fields)
                                       | set(self.INSIGHT_FIELDS)
                                       | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
@@ -139,6 +148,7 @@ class Loader(Insight):
             break
         return True
 
+    @backlog
     def load(self, load_config: dict, **kwargs):
         """ Load data of a source to a destination
 
@@ -162,7 +172,7 @@ class Loader(Insight):
             end_key (:obj:`str`): load end merge key
 
         Notes:
-            For the store_path, please including the / or \ at the end
+            For the store_path, please including the os path seperator at the end
         """
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         destination = load_config['destination']

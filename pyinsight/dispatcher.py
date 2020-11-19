@@ -7,7 +7,7 @@ from typing import List, Dict, Tuple, Union
 from xialib.depositor import Depositor
 from xialib.publisher import Publisher
 from xialib.storer import Storer
-from pyinsight.insight import Insight
+from pyinsight.insight import Insight, backlog
 
 __all__ = ['Dispatcher']
 
@@ -33,7 +33,7 @@ class Dispatcher(Insight):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.logger = logging.getLogger("Insight.Dispatcher")
-        self.log_context = {'context': ''}
+        self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
             formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
                                           '%(context)s:%(message)s')
@@ -71,9 +71,13 @@ class Dispatcher(Insight):
                 tar_data = self.filter_table(full_data, destination[3], destination[4])
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
+            self.logger.info("Dispatch to {}-{}-{}".format(destination[0],
+                                                           destination[1],
+                                                           destination[2]), extra=self.log_context)
             publisher.publish(destination[0], destination[1], tar_header,
                               gzip.compress(json.dumps(tar_data, ensure_ascii=False).encode()))
 
+    @backlog
     def receive_data(self, header: dict, data: Union[List[dict], str, bytes], **kwargs) -> bool:
         """ Public function
 
@@ -99,6 +103,7 @@ class Dispatcher(Insight):
             if active_storer is None:
                 self.logger.error("No storer for store type {}".format(header['data_store']), extra=self.log_context)
                 raise ValueError("INS-000005")
+            header['data_store'] = 'body'
             tar_full_data = json.loads(gzip.decompress(active_storer.read(data)).decode())
         elif isinstance(data, list):
             tar_full_data = data

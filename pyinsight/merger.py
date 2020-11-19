@@ -1,7 +1,7 @@
 import json
 import logging
 from xialib.depositor import Depositor
-from pyinsight.insight import Insight
+from pyinsight.insight import Insight, backlog
 
 __all__ = ['Merger']
 
@@ -16,6 +16,7 @@ class Merger(Insight):
     def __init__(self, depositor, **kwargs):
         super().__init__(depositor=depositor)
         self.logger = logging.getLogger("Insight.Merger")
+        self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
             formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
                                           '%(context)s:%(message)s')
@@ -23,6 +24,7 @@ class Merger(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
+    @backlog
     def merge_data(self, topic_id: str, table_id: str, merge_key: str, merge_level: int, target_merge_level: int,
                    **kwargs):
         self.log_context['context'] = '-'.join([topic_id, table_id])

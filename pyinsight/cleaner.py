@@ -1,7 +1,7 @@
 import logging
 from xialib.archiver import Archiver
 from xialib.depositor import Depositor
-from pyinsight.insight import Insight
+from pyinsight.insight import Insight, backlog
 
 __all__ = ['Cleaner']
 
@@ -15,10 +15,10 @@ class Cleaner(Insight):
         depoistor (:obj:`Depositor`): Data is retrieve from depositor
         archiver (:obj:`Archiver`): Data is saved to archiver
     """
-
     def __init__(self, depositor: Depositor, archiver: Archiver, **kwargs):
         super().__init__(depositor=depositor, archiver=archiver)
         self.logger = logging.getLogger("Insight.Cleaner")
+        self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
             formatter = logging.Formatter('%(asctime)s-%(process)d-%(thread)d-%(module)s-%(funcName)s-%(levelname)s-'
                                           '%(context)s:%(message)s')
@@ -26,6 +26,7 @@ class Cleaner(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
+    @backlog
     def clean_data(self, topic_id: str, table_id: str, start_seq: str, **kwargs):
         """ Public function
 
@@ -45,6 +46,9 @@ class Cleaner(Insight):
         """
         del_list, del_key_list, counter = list(), list(), 0
         # For header lines, start_seq = sort key, that is why we can use start_seq here
+        self.depositor.set_current_topic_table(topic_id, table_id)
+        self.archiver.set_current_topic_table(topic_id, table_id)
+        self.log_context['context'] = '-'.join([topic_id, table_id])
         for doc in self.depositor.get_stream_by_sort_key(le_ge_key=start_seq, reverse=True, equal=False):
             if counter >= 16:
                 self.logger.info("{} documents deleted".format(len(del_list)), extra=self.log_context)

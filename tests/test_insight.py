@@ -22,7 +22,7 @@ def test_messager_setting(insight):
                                  topic_loader='loader',
                                  topic_merger='merger',
                                  topic_packager='packager',
-                                 channel=os.path.join('.', 'output', 'messager'))
+                                 channel=os.path.join('.', 'insight', 'messager'))
 
 def test_messager_send(insight):
     insight.trigger_merge('test', 'aged_data', '1234567890', 1, 2)
