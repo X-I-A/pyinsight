@@ -212,11 +212,14 @@ def load_data_test():
             subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
 
     # Save new loaded data
+    counter = 0
     for msg in subscriber.pull(os.path.join('.', 'output', 'loader'), 'test_01'):
         header, data, msg_id = subscriber.unpack_message(msg)
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
+        counter += len(record_data)
         dispatcher.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
+    assert counter == 2000
 
     depositor.set_current_topic_table('test_01', 'aged_01')
 
