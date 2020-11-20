@@ -202,10 +202,15 @@ def aged_data_test():
 
 def load_data_test():
 
+    for x in range(5):
+        for msg in subscriber.pull(os.path.join('.', 'output', 'loader'), 'test_01'):
+            header, data, msg_id = subscriber.unpack_message(msg)
+            subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
+
     # Load data 1
     msg_loader.load(load_config1)
 
-    for x in range(5):
+    for x in range(10):
         for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
             header, data, msg_id = subscriber.unpack_message(msg)
             msg_loader.load(load_config=header)
@@ -216,10 +221,11 @@ def load_data_test():
     for msg in subscriber.pull(os.path.join('.', 'output', 'loader'), 'test_01'):
         header, data, msg_id = subscriber.unpack_message(msg)
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
-        counter += len(record_data)
+        if int(header.get('age', 0)) != 1:
+            counter += len(record_data)
         dispatcher.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
-    assert counter == 2000
+    assert counter == 999
 
     depositor.set_current_topic_table('test_01', 'aged_01')
 
