@@ -38,11 +38,15 @@ def test_filter_operations(insight):
               [['gender', '!=', 'Male'], ['weight', '<', 100]]]
     with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
         data_body = json.loads(f.read().decode())
+    with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
+        data_body.extend(json.loads(f.read().decode()))
     fields = ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers']
     result1 = insight.filter_table(data_body, fields, filters1)
-    result2 = insight.filter_table(data_body, None, filters2)
-    result3 = insight.filter_table(data_body, fields, None)
-    result4 = insight.filter_table(data_body, None, None)
+    result2 = insight.filter_table(data_body, None, filters1)
+    assert set([r['id'] for r in result1]) == set([r['id'] for r in result2])
+    result3 = insight.filter_table(data_body, None, filters2)
+    result4 = insight.filter_table(data_body, fields, None)
+    result5 = insight.filter_table(data_body, None, None)
     all_need_fields = insight.get_minimum_fields(fields, filters1)
 
 def test_exceptions(insight):
