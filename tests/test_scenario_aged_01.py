@@ -162,7 +162,7 @@ def aged_data_test():
         header, data, msg_id = subscriber.unpack_message(msg)
         subscriber.ack(Insight.channel, Insight.topic_cleaner, msg_id)
 
-    # packager.package_data('scenario_01', 'aged_data')
+    packager.package_data('scenario_01', 'aged_data')
 
     # Second Data Receive
     with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
@@ -182,7 +182,7 @@ def aged_data_test():
     loop.run_until_complete(asyncio.wait([merge_task]))
     loop.close()
 
-    # packager.package_data('scenario_01', 'aged_data')
+    packager.package_data('scenario_01', 'aged_data')
 
     # Check data
     header_ref = depositor.get_table_header()
@@ -252,7 +252,7 @@ def load_data_test():
     for doc_ref in depositor.get_stream_by_sort_key(status_list=['initial']):
         doc_dict = depositor.get_header_from_ref(doc_ref)
         counter += doc_dict['line_nb']
-    # assert counter == 999
+    assert counter == 999
 
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         header, data, msg_id = subscriber.unpack_message(msg)
