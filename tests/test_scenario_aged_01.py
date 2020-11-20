@@ -13,7 +13,7 @@ from pyinsight.loader import Loader
 from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
 
-Insight.log_level = logging.INFO
+# Insight.log_level = logging.INFO
 
 # Insight Level Settings
 messager = BasicPublisher()
@@ -162,7 +162,7 @@ def aged_data_test():
         header, data, msg_id = subscriber.unpack_message(msg)
         subscriber.ack(Insight.channel, Insight.topic_cleaner, msg_id)
 
-    packager.package_data('scenario_01', 'aged_data')
+    # packager.package_data('scenario_01', 'aged_data')
 
     # Second Data Receive
     with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
@@ -182,7 +182,7 @@ def aged_data_test():
     loop.run_until_complete(asyncio.wait([merge_task]))
     loop.close()
 
-    packager.package_data('scenario_01', 'aged_data')
+    # packager.package_data('scenario_01', 'aged_data')
 
     # Check data
     header_ref = depositor.get_table_header()
