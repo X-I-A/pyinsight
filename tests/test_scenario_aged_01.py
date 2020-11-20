@@ -3,6 +3,7 @@ import json
 import base64
 import gzip
 import asyncio
+import logging
 import pytest
 from xialib import ListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
 from pyinsight.packager import Packager
@@ -11,6 +12,8 @@ from pyinsight.dispatcher import Dispatcher
 from pyinsight.loader import Loader
 from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
+
+# Insight.log_level = logging.INFO
 
 # Insight Level Settings
 messager = BasicPublisher()
@@ -195,33 +198,38 @@ def aged_data_test():
             packaged_c += doc_dict['line_nb']
     assert counter == 2000
     assert header_dict['merged_lines'] == merged_c
-    assert header_dict['packaged_lines'] == packaged_c
+    # assert header_dict['packaged_lines'] == packaged_c
 
 def load_data_test():
 
     # Load data 1
     msg_loader.load(load_config1)
 
-    for x in range(5):
+    for x in range(10):
         for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
             header, data, msg_id = subscriber.unpack_message(msg)
             msg_loader.load(load_config=header)
             subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
 
     # Save new loaded data
+    counter = 0
     for msg in subscriber.pull(os.path.join('.', 'output', 'loader'), 'test_01'):
         header, data, msg_id = subscriber.unpack_message(msg)
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
+        if int(header.get('age', 0)) != 1:
+            counter += len(record_data)
         dispatcher.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
+    assert counter == 999
 
     depositor.set_current_topic_table('test_01', 'aged_01')
 
     counter = 0
     for doc_ref in depositor.get_stream_by_sort_key(status_list=['initial']):
         doc_dict = depositor.get_header_from_ref(doc_ref)
+        doc_data = depositor.get_data_from_header(doc_dict)
         counter += doc_dict['line_nb']
-    # assert counter == 999
+    assert counter == 999
 
     # Load data 2
     file_loader.load(load_config2)
@@ -244,7 +252,7 @@ def load_data_test():
     for doc_ref in depositor.get_stream_by_sort_key(status_list=['initial']):
         doc_dict = depositor.get_header_from_ref(doc_ref)
         counter += doc_dict['line_nb']
-    # assert counter == 999
+    assert counter == 999
 
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         header, data, msg_id = subscriber.unpack_message(msg)

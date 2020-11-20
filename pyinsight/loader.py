@@ -45,6 +45,7 @@ class Loader(Insight):
         tar_header['table_id'] = tar_table_id
         tar_header['data_encode'] = 'gzip'
         tar_header['data_store'] = 'body'
+        self.logger.info("Header to be loaded", extra=self.log_context)
         self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                       gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
         return True
@@ -67,6 +68,8 @@ class Loader(Insight):
             tar_header['table_id'] = tar_table_id
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
+            self.logger.info("Doc {} load {} lines".format(doc_dict['merge_key'], len(tar_body_data)),
+                             extra=self.log_context)
             self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                           gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
         return True
@@ -114,6 +117,8 @@ class Loader(Insight):
                     tar_header['data_encode'] = 'gzip'
                     tar_header['data_store'] = 'body'
                     tar_header['data_format'] = 'record'
+                    self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
+                                     extra=self.log_context)
                     self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                                   gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
                     return True
@@ -234,11 +239,9 @@ class Loader(Insight):
                 self._package_load(header_dict, package_load_config)
             return True
         elif load_type == 'header':
-            self.logger.info("Header to be loaded", extra=self.log_context)
             return self._header_load(header_dict, destination, tar_topic_id, tar_table_id)
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
-            self.logger.info("Document load range {}-{}".format(start_key, end_key), extra=self.log_context)
             return self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,
                                      start_key, end_key, fields, filers)
         elif load_type == 'package':
