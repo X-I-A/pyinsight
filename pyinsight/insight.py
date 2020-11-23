@@ -78,7 +78,7 @@ class Insight():
     def __init__(self, **kwargs):
         self.logger = logging.getLogger("Insight")
         self.log_context = {'context': ''}
-        self.logger.level = self.log_level
+        self.logger.setLevel(self.log_level)
         if 'archiver' in kwargs:
             archiver = kwargs['archiver']
             if not isinstance(archiver, Archiver):

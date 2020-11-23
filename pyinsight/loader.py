@@ -15,7 +15,7 @@ __all__ = ['Loader']
 class Loader(Insight):
     """Load Full table data to a destination
 
-    Move the data from depositor to archiver. Design to store huge amount of data on column usage
+    Design to take only useful message to Agent Module
 
     Attributes:
         storers (:obj:`list` of :obj:`Storer`): Read the data which is not in a message body
