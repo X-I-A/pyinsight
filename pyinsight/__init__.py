@@ -14,6 +14,7 @@ from pyinsight.cleaner import Cleaner
 from pyinsight.merger import Merger
 from pyinsight.packager import Packager
 
+
 # Element Listing
 __all__ = insight.__all__ \
     + dispatcher.__all__ \
