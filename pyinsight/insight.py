@@ -182,17 +182,17 @@ class Insight():
     def trigger_merge(cls, topic_id: str, table_id: str, merge_key: str, merge_level: int, target_merge_level: int):
         header = {'topic_id': topic_id, 'table_id': table_id, 'data_spec': 'internal', 'merge_key': merge_key,
                   'merge_level': merge_level, 'target_merge_level': target_merge_level}
-        return cls.messager.publish(cls.channel, cls.topic_merger, header, [])
+        return cls.messager.publish(cls.channel, cls.topic_merger, header, b'[]')
 
     @classmethod
     def trigger_clean(cls, topic_id: str, table_id: str, start_seq: str):
         header = {'topic_id': topic_id, 'table_id': table_id, 'data_spec': 'internal', 'start_seq': start_seq}
-        return cls.messager.publish(cls.channel, cls.topic_cleaner, header, [])
+        return cls.messager.publish(cls.channel, cls.topic_cleaner, header, b'[]')
 
     @classmethod
     def trigger_package(cls, topic_id: str, table_id: str):
         header = {'topic_id': topic_id, 'table_id': table_id, 'data_spec': 'internal'}
-        return cls.messager.publish(cls.channel, cls.topic_packager, header, [])
+        return cls.messager.publish(cls.channel, cls.topic_packager, header, b'[]')
 
     @classmethod
     def trigger_load(cls, load_config: Dict[str, Any]):
@@ -200,7 +200,7 @@ class Insight():
         header.update({'topic_id': load_config['src_topic_id'],
                        'table_id': load_config['src_table_id'],
                        'data_spec': 'internal'})
-        return cls.messager.publish(cls.channel, cls.topic_loader, header, [])
+        return cls.messager.publish(cls.channel, cls.topic_loader, header, b'[]')
 
     @classmethod
     def trigger_backlog(cls, header: dict, error_body: List[dict]):
