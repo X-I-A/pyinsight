@@ -196,10 +196,8 @@ class Insight():
 
     @classmethod
     def trigger_load(cls, load_config: Dict[str, Any]):
-        header = load_config.copy()
-        header.update({'topic_id': load_config['src_topic_id'],
-                       'table_id': load_config['src_table_id'],
-                       'data_spec': 'internal'})
+        header = {'load_config': json.dumps(load_config, ensure_ascii=False),
+                  'data_spec': 'internal'}
         return cls.messager.publish(cls.channel, cls.topic_loader, header, b'[]')
 
     @classmethod

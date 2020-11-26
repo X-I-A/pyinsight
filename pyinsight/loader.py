@@ -2,7 +2,7 @@ import json
 import logging
 import gzip
 import hashlib
-from typing import List, Dict, Any
+from typing import Union, List, Dict, Any
 from xialib.archiver import Archiver
 from xialib.depositor import Depositor
 from xialib.publisher import Publisher
@@ -154,7 +154,7 @@ class Loader(Insight):
         return True
 
     @backlog
-    def load(self, load_config: dict, **kwargs):
+    def load(self, load_config: Union[dict, str], **kwargs):
         """ Load data of a source to a destination
 
         This function will load full / partial data of a source to a destination. Data format will be gzipped records.
