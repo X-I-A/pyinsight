@@ -77,6 +77,8 @@ load_config2 = {
 def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
     header, data, msg_id = s.unpack_message(message)
     header.pop('data_spec')
+    header['merge_level'] = int(header['merge_level'])
+    header['target_merge_level'] = int(header['target_merge_level'])
     if merger.merge_data(**header):
         subscriber.ack(source, subscription_id, msg_id)
 
@@ -208,7 +210,7 @@ def load_data_test():
     for x in range(10):
         for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
             header, data, msg_id = subscriber.unpack_message(msg)
-            msg_loader.load(load_config=header)
+            msg_loader.load(load_config=json.loads(header['load_config']))
             subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
 
     # Save new loaded data
@@ -237,7 +239,7 @@ def load_data_test():
     for x in range(5):
         for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
             header, data, msg_id = subscriber.unpack_message(msg)
-            file_loader.load(load_config=header)
+            file_loader.load(load_config=json.loads(header['load_config']))
             subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
 
     # Save new loaded data
