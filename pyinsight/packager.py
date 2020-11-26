@@ -107,7 +107,10 @@ class Packager(Insight):
                 self.archiver.remove_data()
                 self.logger.info("Deleting {} merged documents".format(len(del_list)), extra=self.log_context)
                 self.depositor.delete_documents(del_list)
-                self.depositor.inc_table_header(packaged_size=packaged_size, packaged_lines=packaged_lines)
+                self.depositor.inc_table_header(packaged_size=packaged_size,
+                                                packaged_lines=packaged_lines,
+                                                merged_size=packaged_size*-1,
+                                                merged_lines=packaged_lines*-1)
                 packaged_size, packaged_lines, min_age, min_start_time, del_list = 0, 0, '', '', list()
             else:
                 del_list.append(doc_ref)
