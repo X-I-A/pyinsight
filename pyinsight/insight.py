@@ -236,4 +236,5 @@ def backlog(func):
             if format(e)[:3] in ['XIA', 'INS', 'XED', 'AGT']:
                 header['table_id'] = exception_msg
             Insight.trigger_backlog(header, body)
+            return True
     return wrapper

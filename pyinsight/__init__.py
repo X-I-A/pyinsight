@@ -14,6 +14,7 @@ from pyinsight.cleaner import Cleaner
 from pyinsight.merger import Merger
 from pyinsight.packager import Packager
 
+
 # Element Listing
 __all__ = insight.__all__ \
     + dispatcher.__all__ \
@@ -22,4 +23,4 @@ __all__ = insight.__all__ \
     + merger.__all__ \
     + packager.__all__
 
-__version__ = "0.2.3"
+__version__ = "0.2.5"

@@ -1,14 +1,14 @@
 import os
 import json
 import pytest
-from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer, ListArchiver
+from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer, IOListArchiver
 from pyinsight.insight import Insight
 
 @pytest.fixture(scope='module')
 def insight():
     storer = BasicStorer()
     publishers = {'test-001': BasicPublisher()}
-    archiver = ListArchiver(archive_path=os.path.join('.', 'output', 'archiver'))
+    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'))
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     insight = Insight(storers=[storer], publishers=publishers, archiver=archiver, depositor=depositor)
     yield insight
