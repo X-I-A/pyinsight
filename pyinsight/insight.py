@@ -181,7 +181,7 @@ class Insight():
     @classmethod
     def trigger_merge(cls, topic_id: str, table_id: str, merge_key: str, merge_level: int, target_merge_level: int):
         header = {'topic_id': topic_id, 'table_id': table_id, 'data_spec': 'internal', 'merge_key': merge_key,
-                  'merge_level': merge_level, 'target_merge_level': target_merge_level}
+                  'merge_level': str(merge_level), 'target_merge_level': str(target_merge_level)}
         return cls.messager.publish(cls.channel, cls.topic_merger, header, b'[]')
 
     @classmethod

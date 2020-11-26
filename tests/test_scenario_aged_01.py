@@ -77,6 +77,8 @@ load_config2 = {
 def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
     header, data, msg_id = s.unpack_message(message)
     header.pop('data_spec')
+    header['merge_level'] = int(header['merge_level'])
+    header['target_merge_level'] = int(header['target_merge_level'])
     if merger.merge_data(**header):
         subscriber.ack(source, subscription_id, msg_id)
 
