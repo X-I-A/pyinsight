@@ -1,5 +1,6 @@
 import json
 import logging
+import base64
 import gzip
 import hashlib
 from typing import Union, List, Dict, Any
@@ -7,7 +8,7 @@ from xialib.archiver import Archiver
 from xialib.depositor import Depositor
 from xialib.publisher import Publisher
 from xialib.storer import Storer
-from pyinsight.insight import Insight, backlog
+from pyinsight.insight import Insight, backlog, get_fields_from_filter
 
 
 __all__ = ['Loader']
@@ -105,12 +106,22 @@ class Loader(Insight):
                 # Obsolete Document
                 if tar_header['merge_key'] < header_dict['start_seq']:
                     return True  # pragma: no cover
-                needed_fields = list( set(fields)
-                                      | set(self.INSIGHT_FIELDS)
-                                      | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
-                self.archiver.load_archive(tar_header['merge_key'], needed_fields)
-                tar_body_data = self.archiver.get_data()
-                tar_body_data = self.filter_table(tar_body_data, fields, filters)
+                # Check if the package has the requested data
+                skip_flag = False
+                if 'catalog' in tar_header:
+                    catalog = json.loads(gzip.decompress(base64.b64decode(tar_header['catalog'])))
+                    if not self._check_has_needed_data(filters, catalog):
+                        skip_flag = True
+
+                if skip_flag:
+                    tar_body_data = []
+                else:
+                    needed_fields = list( set(fields)
+                                          | set(self.INSIGHT_FIELDS)
+                                          | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
+                    self.archiver.load_archive(tar_header['merge_key'], needed_fields)
+                    tar_body_data = self.archiver.get_data()
+                    tar_body_data = self.filter_table(tar_body_data, fields, filters)
                 if load_config.get('data_store', 'body') == 'body':
                     tar_header['topic_id'] = tar_topic_id
                     tar_header['table_id'] = tar_table_id
@@ -151,6 +162,39 @@ class Loader(Insight):
                 left_load_config['end_key'] = left_end_key
                 self.trigger_load(left_load_config)
             break
+        return True
+
+    def _get_single_dnf_field(self, ndf_filter: List[List[list]], field_name: str, info_type: str):
+        new_dnf_filter = list()
+        for or_filter in ndf_filter:
+            new_or_filter = list()
+            for and_filter in [item for item in or_filter if item[0] == field_name]:
+                if info_type == 'full':
+                    new_or_filter.append(and_filter)
+                elif info_type == 'number' and and_filter[1] in ['=', '<', '<=', '>', '>=']:
+                    and_filter[2] = self.archiver.func_map[info_type](and_filter[2])
+                    if and_filter[1] in ['<', '<=']:
+                        and_filter[2] += 1
+                    elif and_filter[1] in ['>', '>=']:
+                        and_filter[2] -= 1
+                    new_or_filter.append(and_filter)
+                elif info_type.startswith('c_') and and_filter[1] == '=':
+                    and_filter[2] = self.archiver.func_map[info_type](and_filter[2])
+                    new_or_filter.append(and_filter)
+            if not new_or_filter:
+                return [[]]
+            else:
+                new_dnf_filter.append(new_or_filter)
+        return new_dnf_filter
+
+    def _check_has_needed_data(self, ndf_filters: List[List[list]], catalog: dict) -> bool:
+        field_list = [fn for fn in get_fields_from_filter(ndf_filters) if catalog.get(fn, {}).get('value', []) != []]
+        for field in field_list:
+            data_list = [{field: value} for value in catalog[field]['value']]
+            new_filter = self._get_single_dnf_field(ndf_filters, field, catalog[field]['type'])
+            data_list = self.filter_table_dnf(data_list, new_filter)
+            if not data_list:
+                return False
         return True
 
     @backlog
