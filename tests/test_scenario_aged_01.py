@@ -260,6 +260,24 @@ def load_data_test():
         header, data, msg_id = subscriber.unpack_message(msg)
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
+    # Load skip check number >
+    load_config3 = load_config1.copy()
+    load_config3['load_type'] = 'package'
+    load_config3['filters'] = [[['id', '>=', 2000]]]
+    load_config3['start_key'] = '20201113222500000016'
+    load_config3['end_key'] = '20201113222500000016'
+    msg_loader.load(load_config=load_config3)
+
+    # Load skip check number <
+    load_config4 = load_config3.copy()
+    load_config4['filters'] = [[['id', '<', -1000]]]
+    msg_loader.load(load_config=load_config4)
+
+    # Load skip check number <
+    load_config5 = load_config3.copy()
+    load_config5['filters'] = [[['city', '=', '上海']]]
+    msg_loader.load(load_config=load_config5)
+
 
 def final_clean():
     cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')

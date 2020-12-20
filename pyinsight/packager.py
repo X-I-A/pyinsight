@@ -1,4 +1,7 @@
 import logging
+import json
+import gzip
+import base64
 from xialib.archiver import Archiver
 from xialib.depositor import Depositor
 from pyinsight.insight import Insight, backlog
@@ -93,6 +96,9 @@ class Packager(Insight):
                     doc_dict['segment_start_time'] = self.depositor.DELETE
                 else:
                     self.logger.warning("Archiving without age / time", extra=self.log_context)  # pragma: no cover
+                catalog = {fn: self.archiver.describe_single_field(fn) for fn in self.archiver.get_field_list()}
+                doc_dict['catalog'] = \
+                    base64.b64encode(gzip.compress(json.dumps(catalog, ensure_ascii=False).encode())).decode()
                 doc_dict['data_encode'] = self.archiver.data_encode
                 doc_dict['data_format'] = self.archiver.data_format
                 doc_dict['data_store'] = self.archiver.data_store
