@@ -53,8 +53,9 @@ class Loader(Insight):
                                       gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
         return True
 
-    # Normal Load : Send One by One
+    # Normal Load : Send One by One without duplications
     def _normal_load(self, header_dict, destination, tar_topic_id, tar_table_id, start_key, end_key, fields, filters):
+        load_history = dict()
         for doc_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial'], start_key):
             doc_dict = self.depositor.get_header_from_ref(doc_ref)
             # Case 1 : End of the Scope
@@ -66,6 +67,10 @@ class Loader(Insight):
             # Case 3: Normal -> Dispatch Document
             tar_header = doc_dict.copy()
             tar_body_data = self.depositor.get_data_from_header(tar_header)
+            tar_body_data = [line for line in tar_body_data
+                if (line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)) not in load_history]
+            load_history.update({(line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)): None
+                                 for line in tar_body_data})
             tar_body_data = self.filter_table(tar_body_data, fields, filters)
             tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = tar_topic_id
