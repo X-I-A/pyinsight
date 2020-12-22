@@ -42,6 +42,7 @@ class Loader(Insight):
     def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
         tar_header = header_dict.copy()
         tar_body_data = self.depositor.get_data_from_header(tar_header)
+        tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
         tar_header['topic_id'] = tar_topic_id
         tar_header['table_id'] = tar_table_id
         tar_header['data_encode'] = 'gzip'
@@ -66,6 +67,7 @@ class Loader(Insight):
             tar_header = doc_dict.copy()
             tar_body_data = self.depositor.get_data_from_header(tar_header)
             tar_body_data = self.filter_table(tar_body_data, fields, filters)
+            tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = tar_topic_id
             tar_header['table_id'] = tar_table_id
             tar_header['data_encode'] = 'gzip'
@@ -125,6 +127,7 @@ class Loader(Insight):
                     tar_body_data = self.archiver.get_data()
                     tar_body_data = self.filter_table(tar_body_data, fields, filters)
                 if load_config.get('data_store', 'body') == 'body':
+                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
                     tar_header['topic_id'] = tar_topic_id
                     tar_header['table_id'] = tar_table_id
                     tar_header['data_encode'] = 'gzip'
@@ -142,6 +145,7 @@ class Loader(Insight):
                         str(int(tar_header['start_seq']) + int(tar_header.get('age', 0))) + '.gz'
                     self.active_storer.write(gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()),
                                              location)
+                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
                     tar_header['topic_id'] = tar_topic_id
                     tar_header['table_id'] = tar_table_id
                     tar_header['data_encode'] = 'gzip'

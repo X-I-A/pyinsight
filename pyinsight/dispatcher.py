@@ -62,6 +62,7 @@ class Dispatcher(Insight):
                       dest_list: List[Tuple[str, str, str, list, list]]):
         for destination in dest_list:
             tar_header = header.copy()
+            tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = destination[1]
             tar_header['table_id'] = destination[2]
             if int(tar_header.get('age', 0)) == 1:
