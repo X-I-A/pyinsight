@@ -42,17 +42,20 @@ class Loader(Insight):
     def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
         tar_header = header_dict.copy()
         tar_body_data = self.depositor.get_data_from_header(tar_header)
+        tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
         tar_header['topic_id'] = tar_topic_id
         tar_header['table_id'] = tar_table_id
         tar_header['data_encode'] = 'gzip'
         tar_header['data_store'] = 'body'
+        tar_header.pop('data', None)
         self.logger.info("Header to be loaded", extra=self.log_context)
         self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                       gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
         return True
 
-    # Normal Load : Send One by One
+    # Normal Load : Send One by One without duplications
     def _normal_load(self, header_dict, destination, tar_topic_id, tar_table_id, start_key, end_key, fields, filters):
+        load_history = dict()
         for doc_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial'], start_key):
             doc_dict = self.depositor.get_header_from_ref(doc_ref)
             # Case 1 : End of the Scope
@@ -64,11 +67,17 @@ class Loader(Insight):
             # Case 3: Normal -> Dispatch Document
             tar_header = doc_dict.copy()
             tar_body_data = self.depositor.get_data_from_header(tar_header)
+            tar_body_data = [line for line in tar_body_data
+                if (line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)) not in load_history]
+            load_history.update({(line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)): None
+                                 for line in tar_body_data})
             tar_body_data = self.filter_table(tar_body_data, fields, filters)
+            tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = tar_topic_id
             tar_header['table_id'] = tar_table_id
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
+            tar_header.pop('data', None)
             self.logger.info("Doc {} load {} lines".format(doc_dict['merge_key'], len(tar_body_data)),
                              extra=self.log_context)
             self.active_publisher.publish(destination, tar_topic_id, tar_header,
@@ -123,11 +132,13 @@ class Loader(Insight):
                     tar_body_data = self.archiver.get_data()
                     tar_body_data = self.filter_table(tar_body_data, fields, filters)
                 if load_config.get('data_store', 'body') == 'body':
+                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
                     tar_header['topic_id'] = tar_topic_id
                     tar_header['table_id'] = tar_table_id
                     tar_header['data_encode'] = 'gzip'
                     tar_header['data_store'] = 'body'
                     tar_header['data_format'] = 'record'
+                    tar_header.pop('data', None)
                     self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
                                      extra=self.log_context)
                     self.active_publisher.publish(destination, tar_topic_id, tar_header,
@@ -139,11 +150,13 @@ class Loader(Insight):
                         str(int(tar_header['start_seq']) + int(tar_header.get('age', 0))) + '.gz'
                     self.active_storer.write(gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()),
                                              location)
+                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
                     tar_header['topic_id'] = tar_topic_id
                     tar_header['table_id'] = tar_table_id
                     tar_header['data_encode'] = 'gzip'
                     tar_header['data_store'] = load_config['data_store']
                     tar_header['data_format'] = 'record'
+                    tar_header.pop('data', None)
                     self.active_publisher.publish(destination, tar_topic_id, tar_header, location)
                     return True
         # Step 2: Get the right start key
