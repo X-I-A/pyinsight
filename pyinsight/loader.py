@@ -46,6 +46,7 @@ class Loader(Insight):
         tar_header['table_id'] = tar_table_id
         tar_header['data_encode'] = 'gzip'
         tar_header['data_store'] = 'body'
+        tar_header.pop('data', None)
         self.logger.info("Header to be loaded", extra=self.log_context)
         self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                       gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
@@ -69,6 +70,7 @@ class Loader(Insight):
             tar_header['table_id'] = tar_table_id
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
+            tar_header.pop('data', None)
             self.logger.info("Doc {} load {} lines".format(doc_dict['merge_key'], len(tar_body_data)),
                              extra=self.log_context)
             self.active_publisher.publish(destination, tar_topic_id, tar_header,
@@ -128,6 +130,7 @@ class Loader(Insight):
                     tar_header['data_encode'] = 'gzip'
                     tar_header['data_store'] = 'body'
                     tar_header['data_format'] = 'record'
+                    tar_header.pop('data', None)
                     self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
                                      extra=self.log_context)
                     self.active_publisher.publish(destination, tar_topic_id, tar_header,
@@ -144,6 +147,7 @@ class Loader(Insight):
                     tar_header['data_encode'] = 'gzip'
                     tar_header['data_store'] = load_config['data_store']
                     tar_header['data_format'] = 'record'
+                    tar_header.pop('data', None)
                     self.active_publisher.publish(destination, tar_topic_id, tar_header, location)
                     return True
         # Step 2: Get the right start key
