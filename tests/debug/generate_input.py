@@ -1,6 +1,7 @@
 import os
 import json
 import gzip
+import base64
 from xialib import BasicTranslator
 
 """
@@ -35,8 +36,14 @@ def create_saved_doc():
     with open(os.path.join('..', 'input', 'insight_formats', '000002.gz'), 'wb') as f:
         f.write(gzipped)
 
+def create_saved_header():
+    with open(os.path.join('..', 'input', 'person_complex', 'schema.json'), 'rb') as f:
+        data_header = json.loads(f.read().decode())
+        print(base64.b64encode(gzip.compress(json.dumps(data_header, ensure_ascii=False).encode())).decode())
+
 if __name__=='__main__':
-    create_saved_doc()
+    create_saved_header()
+    # create_saved_doc()
     # generate_person_complex()
     # generate_person_simple()
 

@@ -39,9 +39,10 @@ class Loader(Insight):
         self.active_publisher = None
 
     # Head Load: Simple Sent
-    def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
+    def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id, fields) -> bool:
         tar_header = header_dict.copy()
         tar_body_data = self.depositor.get_data_from_header(tar_header)
+        tar_body_data = [field for field in tar_body_data if field['field_name'] in fields or field['key_flag']]
         tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
         tar_header['topic_id'] = tar_topic_id
         tar_header['table_id'] = tar_table_id
@@ -261,7 +262,7 @@ class Loader(Insight):
 
         if load_type == 'initial':
             self.logger.info("Header to be loaded", extra=self.log_context)
-            self._header_load(header_dict, destination, tar_topic_id, tar_table_id)
+            self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
             # Get Start key or End key
             start_doc_ref, end_doc_ref, start_merge_ref = None, None, None
             for start_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial']):
@@ -296,7 +297,7 @@ class Loader(Insight):
                 self._package_load(header_dict, package_load_config)
             return True
         elif load_type == 'header':
-            return self._header_load(header_dict, destination, tar_topic_id, tar_table_id)
+            return self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
             return self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,

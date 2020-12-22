@@ -1,107 +1,77 @@
-{
-  "id": 270256,
-  "num_rows": 1000,
-  "file_format": "json",
-  "name": "person_complexe",
-  "array": true,
-  "columns": [
+[
     {
-      "name": "id",
-      "null_percentage": 0,
-      "type": "Row Number",
-      "formula": ""
+      "field_name": "id",
+      "key_flag": true,
+      "type_chain": ["int", "i_4"],
+      "description": "Row Number",
+      "format": null,
+      "encode": null
     },
     {
-      "name": "first_name",
-      "null_percentage": 0,
-      "type": "First Name",
-      "formula": ""
+      "field_name": "first_name",
+      "key_flag": true,
+      "type_chain": ["char"],
+      "description": "First Name",
+      "format": null,
+      "encode": null,
+      "default": ""
     },
     {
-      "name": "last_name",
-      "null_percentage": 0,
-      "type": "Last Name",
-      "formula": ""
+      "field_name": "last_name",
+      "key_flag": true,
+      "type_chain": ["char"],
+      "description": "Last Name",
+      "format": null,
+      "encode": null,
+      "default": ""
     },
     {
-      "name": "email",
-      "null_percentage": 20,
-      "type": "Email Address",
-      "formula": ""
+      "field_name": "email",
+      "key_flag": false,
+      "type_chain": ["char"],
+      "description": "Email Address",
+      "format": null,
+      "encode": null
     },
     {
-      "name": "gender",
-      "null_percentage": 5,
-      "type": "Gender",
-      "formula": ""
+      "field_name": "gender",
+      "key_flag": false,
+      "type_chain": ["char"],
+      "description": "Gender",
+      "format": null,
+      "encode": null
     },
     {
-      "name": "city",
-      "null_percentage": 30,
-      "type": "City",
-      "formula": ""
+      "field_name": "city",
+      "key_flag": false,
+      "type_chain": ["char"],
+      "description": "City",
+      "format": null,
+      "encode": null
     },
     {
-      "name": "birthday",
-      "null_percentage": 40,
-      "type": "Datetime",
-      "min": "10/30/1920",
-      "max": "10/30/2010",
-      "format": "%Y-%m-%d",
-      "formula": ""
+      "field_name": "birthday",
+      "key_flag": false,
+      "type_chain": ["char", "c_10", "date"],
+      "description": "Datetime",
+      "format": "yyyy-mm-dd",
+      "encode": null
     },
     {
-      "name": "weight",
-      "null_percentage": 15,
-      "type": "Number",
-      "min": 40,
-      "max": 120,
-      "decimals": 0,
-      "formula": ""
+      "field_name": "weight",
+      "key_flag": false,
+      "type_chain": ["int", "i_4"],
+      "description": "Weight",
+      "format": null,
+      "encode": null,
+      "default": 0
     },
     {
-      "name": "height",
-      "null_percentage": 10,
-      "type": "Number",
-      "min": 150,
-      "max": 200,
-      "decimals": 0,
-      "formula": ""
-    },
-    {
-      "name": "children",
-      "null_percentage": 25,
-      "type": "JSON Array",
-      "minItems": 1,
-      "maxItems": 4,
-      "formula": ""
-    },
-    {
-      "name": "children.first_name",
-      "null_percentage": 0,
-      "type": "First Name",
-      "formula": ""
-    },
-    {
-      "name": "children.last_name",
-      "null_percentage": 0,
-      "type": "Last Name",
-      "formula": ""
-    },
-    {
-      "name": "preferred_colors[2]",
-      "null_percentage": 20,
-      "type": "Color",
-      "formula": ""
-    },
-    {
-      "name": "lucky_numbers[3]",
-      "null_percentage": 30,
-      "type": "Number",
-      "min": 1,
-      "max": 20,
-      "decimals": 0,
-      "formula": ""
+      "field_name": "height",
+      "key_flag": false,
+      "type_chain": ["int", "i_4"],
+      "description": "Height",
+      "format": null,
+      "encode": null
     }
-  ]
-}
+]

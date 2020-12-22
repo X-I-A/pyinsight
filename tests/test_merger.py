@@ -14,11 +14,10 @@ def test_simpler_merger(merger):
     translator = BasicTranslator()
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
-        field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'aged_data', 'aged': 'True',
                   'data_encode': 'flat', 'data_format': 'record', 'data_spec': '', 'data_store': 'body',
-                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
-    merger.depositor.add_document(header, field_data)
+                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
+    merger.depositor.add_document(header, data_header)
 
     with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
         data_body = json.loads(f.read().decode())
