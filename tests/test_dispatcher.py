@@ -44,11 +44,10 @@ def dispatcher():
 def test_send_age_header(dispatcher):
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
-        field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'aged_data', 'aged': 'True',
                   'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
-                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
-    dispatcher.receive_data(header, field_data)
+                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
+    dispatcher.receive_data(header, data_header)
 
 def test_send_age_document(dispatcher):
     translator = BasicTranslator()
@@ -108,11 +107,10 @@ def test_send_age_gzip_document(dispatcher):
 def test_send_normal_header(dispatcher):
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
-        field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'normal_data',
                   'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
-                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
-    dispatcher.receive_data(header, field_data)
+                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
+    dispatcher.receive_data(header, data_header)
 
 def test_send_normal_document(dispatcher):
     translator = BasicTranslator()
@@ -133,12 +131,11 @@ def test_send_with_single_component(dispatcher):
 
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())
-        field_data = data_header.pop('columns')
         header = {'topic_id': 'test', 'table_id': 'aged_data', 'aged': 'True',
                   'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
-                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': data_header}
-    dispatcher_1.receive_data(header, field_data)
-    dispatcher_2.receive_data(header, field_data)
+                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
+    dispatcher_1.receive_data(header, data_header)
+    dispatcher_2.receive_data(header, data_header)
 
 def test_exceptions(dispatcher):
     with pytest.raises(TypeError):

@@ -66,7 +66,8 @@ class Dispatcher(Insight):
             tar_header['topic_id'] = destination[1]
             tar_header['table_id'] = destination[2]
             if int(tar_header.get('age', 0)) == 1:
-                tar_data = full_data
+                fields = destination[3] if destination[3] else [field['field_name'] for field in full_data]
+                tar_data = [field for field in full_data if field['field_name'] in fields or field['key_flag']]
             else:
                 tar_data = self.filter_table(full_data, destination[3], destination[4])
             tar_header['data_encode'] = 'gzip'
