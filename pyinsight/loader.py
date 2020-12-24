@@ -261,8 +261,8 @@ class Loader(Insight):
         header_dict = self.depositor.get_header_from_ref(header_ref)
 
         if load_type == 'initial':
-            self.logger.info("Header to be loaded", extra=self.log_context)
-            self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
+            # self.logger.info("Header to be loaded", extra=self.log_context)
+            # self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
             # Get Start key or End key
             start_doc_ref, end_doc_ref, start_merge_ref = None, None, None
             for start_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial']):
