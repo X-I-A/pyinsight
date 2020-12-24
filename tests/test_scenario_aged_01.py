@@ -203,6 +203,9 @@ def aged_data_test():
 def load_data_test():
 
     # Load data 1
+    load_config1['load_type'] = 'header'
+    msg_loader.load(load_config1)
+    load_config1['load_type'] = 'initial'
     msg_loader.load(load_config1)
 
     for x in range(10):
@@ -232,6 +235,9 @@ def load_data_test():
     assert counter == 999
 
     # Load data 2
+    load_config2['load_type'] = 'header'
+    file_loader.load(load_config2)
+    load_config2['load_type'] = 'initial'
     file_loader.load(load_config2)
 
     for x in range(5):
