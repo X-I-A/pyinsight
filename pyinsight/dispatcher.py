@@ -42,21 +42,24 @@ class Dispatcher(Insight):
 
         if 'subscription_list' in kwargs:
             subscription_list = kwargs['subscription_list']
-            if 'publishers' not in kwargs:
-                self.logger.error("Subsciption list contains no publisher", extra=self.log_context)
-                raise TypeError("INS-000008")
-
-            if not all([all([next(iter(client)) in self.publishers for client in clients])
-                        for k, clients in subscription_list.items()]):
+            if not all([item[2] in self.publishers for item in subscription_list]):
                 self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
                 raise TypeError("INS-000006")
             else:
                 self.subscription_list = subscription_list
         else:
-            self.subscription_list = {}
+            self.subscription_list = []
 
         if 'depositor' not in kwargs:
             self.depositor = None
+
+    def _iter_config_by_src_per_publisher(self, src_topic_id: str, src_table_id: str):
+        config_list = [cfg for cfg in self.subscription_list if cfg[0] == src_topic_id and cfg[1] == src_table_id]
+        publisher_list = set([cfg[2] for cfg in config_list])
+        for publisher_id in publisher_list:
+            dest_list = [cfg[3:7] for cfg in config_list if cfg[2] == publisher_id]
+            yield {publisher_id: dest_list}
+
 
     def _dispatch_data(self, header: dict, full_data: List[dict], publisher: Publisher,
                       dest_list: List[Tuple[str, str, str, list, list]]):
@@ -118,8 +121,8 @@ class Dispatcher(Insight):
             tar_full_data = json.loads(data)
         # Step 2: Multi-thread publish
         handlers = list()
-        for client_config in self.subscription_list.get((src_topic_id, src_table_id), list()):
-            for publisher_id, dest_list in client_config.items():
+        for config in self._iter_config_by_src_per_publisher(src_topic_id, src_table_id):
+            for publisher_id, dest_list in config.items():
                 publisher = self.publishers.get(publisher_id)
                 cur_handler = threading.Thread(target=self._dispatch_data,
                                                args=(header, tar_full_data, publisher, dest_list))
