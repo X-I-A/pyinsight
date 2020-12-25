@@ -57,7 +57,7 @@ class Dispatcher(Insight):
         config_list = [cfg for cfg in self.subscription_list if cfg[0] == src_topic_id and cfg[1] == src_table_id]
         publisher_list = set([cfg[2] for cfg in config_list])
         for publisher_id in publisher_list:
-            dest_list = [cfg[3:7] for cfg in config_list if cfg[2] == publisher_id]
+            dest_list = [cfg[3:8] for cfg in config_list if cfg[2] == publisher_id]
             yield {publisher_id: dest_list}
 
 
