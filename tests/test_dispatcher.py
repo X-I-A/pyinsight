@@ -27,12 +27,10 @@ def dispatcher():
                   'client-002': publisher,
                   'client-003': publisher,
                   'client-004': publisher}
-    subscription_list = {('test', 'aged_data'):
-                             [{'client-001': [(dest01, 't1', 'aged', None, None)]},
-                              {'client-002': [(dest02, 't2', 'aged', fields, None)]}],
-                         ('test', 'normal_data'):
-                             [{'client-003': [(dest03, 't3', 'aged', None, filters1)]},
-                              {'client-004': [(dest04, 't4', 'aged', fields, filters2)]}]}
+    subscription_list = [['test', 'aged_data', 'client-001', dest01, 't1', 'aged', None, None],
+                         ['test', 'aged_data', 'client-002', dest02, 't2', 'aged', fields, None],
+                         ['test', 'normal_data', 'client-003', dest03, 't3', 'aged', None, filters1],
+                         ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1]]
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     dispatcher = Dispatcher(publishers=publishers,
                             storers=[storer],
@@ -138,8 +136,6 @@ def test_send_with_single_component(dispatcher):
     dispatcher_2.receive_data(header, data_header)
 
 def test_exceptions(dispatcher):
-    with pytest.raises(TypeError):
-        ko_disp = Dispatcher(subscription_list=dispatcher.subscription_list)
     ko_publishers = dispatcher.publishers.copy()
     ko_publishers.pop('client-003')
     with pytest.raises(TypeError):

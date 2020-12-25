@@ -23,4 +23,4 @@ __all__ = insight.__all__ \
     + merger.__all__ \
     + packager.__all__
 
-__version__ = "0.2.11"
+__version__ = "0.2.12"
