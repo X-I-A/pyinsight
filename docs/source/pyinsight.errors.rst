@@ -9,3 +9,5 @@ Error Codes
 * INS-000006: Subscription list contians unknown publisher
 * INS-000007: archiver should have type of Archiver
 * INS-000008: Subsciption list contains no publisher
+* INS-000009: Insight ID must be an existed domain
+* INS-000010: Unknown event type to prepare call
