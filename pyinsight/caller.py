@@ -15,6 +15,17 @@ def prepare_source_table_init(data_header: dict, data_body: List[dict]):
     post_data['data'] = []
     return post_path, post_data
 
+def prepare_target_table_update(data_header: dict, data_body: List[dict]):
+    post_path = '/events/target-table-update'
+    post_data = dict()
+    post_data['event_type'] = data_header['event_type']
+    post_data['source_id'] = data_header.get('source_id', data_header['table_id'])
+    post_data['start_seq'] = data_header['start_seq']
+    post_data['topic_id'] = data_header['topic_id']
+    post_data['table_id'] = data_header.get('table_id', post_data['source_id'])
+    post_data['data'] = [{key: value for key, value in line.items() if not key.startswith('_')} for line in data_body]
+    return post_path, post_data
+
 class Caller(Insight):
     """Call X-I-A Public API
 
@@ -25,7 +36,8 @@ class Caller(Insight):
 
     """
     method_dict = {
-        'source_table_init': prepare_source_table_init
+        'source_table_init': prepare_source_table_init,
+        'target_table_update': prepare_target_table_update,
     }
 
     def __init__(self, insight_id: str, **kwargs):
