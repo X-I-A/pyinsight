@@ -119,7 +119,10 @@ class Dispatcher(Insight):
             tar_full_data = json.loads(gzip.decompress(data).decode())
         else:
             tar_full_data = json.loads(data)
-        # Step 2: Multi-thread publish
+        # Step 2: Might need to send events
+        if 'event_type' in header:
+            self.trigger_cockpit(header, tar_full_data)
+        # Step 3: Multi-thread publish
         handlers = list()
         for config in self._iter_config_by_src_per_publisher(src_topic_id, src_table_id):
             for publisher_id, dest_list in config.items():
@@ -128,22 +131,23 @@ class Dispatcher(Insight):
                                                args=(header, tar_full_data, publisher, dest_list))
                 cur_handler.start()
                 handlers.append(cur_handler)
-        # Step 3.1: Add to depositor if depositor is initialized
+        # Step 4.1: Add to depositor if depositor is initialized
         if self.depositor:
             saved_headers = self.depositor.add_document(header, tar_full_data)
-            # Step 3.2: Check if the first level merge process should be triggered
+            # Step 4.2: Check if the first level merge process should be triggered
             for saved_header in saved_headers:
                 if saved_header.get('merge_level', 0) > 0 and saved_header.get('merge_status', '') != 'header':
                     self.logger.info("Trigger Merging", extra=self.log_context)
                     self.trigger_merge(saved_header['topic_id'], saved_header['table_id'],
                                        saved_header['merge_key'], 1, saved_header['merge_level'])
-                # Step 3.3: Header related operations
+                # Step 4.3: Header related operations
                 if saved_header['merge_status'] == 'header':
                     self.logger.info("Sending table creation event", extra=self.log_context)
-                    self.trigger_cockpit('source_table_init', saved_header, tar_full_data)
+                    saved_header['event_type'] = 'target_table_update'
+                    self.trigger_cockpit(saved_header, tar_full_data)
                     self.logger.info("Trigger Cleaning", extra=self.log_context)
                     self.trigger_clean(saved_header['topic_id'], saved_header['table_id'], saved_header['start_seq'])
-        # Step 4: Wait until all the dispatch thread are finished
+        # Step 4.4: Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()
         return True

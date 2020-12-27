@@ -52,6 +52,9 @@ class Loader(Insight):
         self.logger.info("Header to be loaded", extra=self.log_context)
         self.active_publisher.publish(destination, tar_topic_id, tar_header,
                                       gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
+        self.logger.info("Sending table creation event", extra=self.log_context)
+        tar_header['event_type'] = 'target_table_update'
+        self.trigger_cockpit(tar_header, tar_body_data)
         return True
 
     # Normal Load : Send One by One without duplications
