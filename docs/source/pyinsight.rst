@@ -12,6 +12,10 @@ Actions
    :members:
    :private-members:
 
+.. autoclass::  xialib.adaptor.Adaptor
+   :members:
+   :private-members:
+
 Dictionary
 ----------
 .. toctree::
