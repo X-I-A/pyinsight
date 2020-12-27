@@ -137,8 +137,10 @@ class Dispatcher(Insight):
                     self.logger.info("Trigger Merging", extra=self.log_context)
                     self.trigger_merge(saved_header['topic_id'], saved_header['table_id'],
                                        saved_header['merge_key'], 1, saved_header['merge_level'])
-                # Step 3.3: Trigger clean
+                # Step 3.3: Header related operations
                 if saved_header['merge_status'] == 'header':
+                    self.logger.info("Sending table creation event", extra=self.log_context)
+                    self.trigger_cockpit('source_table_init', saved_header, tar_full_data)
                     self.logger.info("Trigger Cleaning", extra=self.log_context)
                     self.trigger_clean(saved_header['topic_id'], saved_header['table_id'], saved_header['start_seq'])
         # Step 4: Wait until all the dispatch thread are finished

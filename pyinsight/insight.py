@@ -207,6 +207,13 @@ class Insight():
         return cls.messager.publish(cls.channel, cls.topic_backlog, header,
                                     gzip.compress(json.dumps(error_body, ensure_ascii=False).encode()))
 
+    @classmethod
+    def trigger_cockpit(cls, event_name: str, data_header: dict, data_body: List[dict]):
+        data_header['event_name'] = event_name
+        data_header['data_encode'] = 'gzip'
+        return cls.messager.publish(cls.channel, cls.topic_cockpit, data_header,
+                                    gzip.compress(json.dumps(data_body, ensure_ascii=False).encode()))
+
 def backlog(func):
     """Send all errors to backlog
 
