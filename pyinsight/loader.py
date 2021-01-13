@@ -25,8 +25,8 @@ class Loader(Insight):
         archiver (:obj:`Archiver`): Data is saved to archiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id and its related publisher object
     """
-    def __init__(self, depositor: Depositor, publishers: Dict[str, Publisher], **kwargs):
-        super().__init__(depositor=depositor, publishers=publishers, **kwargs)
+    def __init__(self, depositor: Depositor, publisher: Dict[str, Publisher], **kwargs):
+        super().__init__(depositor=depositor, publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Loader")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
@@ -247,7 +247,7 @@ class Loader(Insight):
         self.log_context['context'] = src_topic_id + '-' + src_table_id + '|' + \
                                       tar_topic_id + '-' + tar_table_id
         # Step 1: Get the correct task taker
-        self.active_publisher = self.publishers.get(load_config['publisher_id'])
+        self.active_publisher = self.publisher.get(load_config['publisher_id'])
         if load_config.get('data_store', 'body') != 'body':
             self.active_storer = self.storer_dict.get(load_config['data_store'], None)
             if not self.active_storer:

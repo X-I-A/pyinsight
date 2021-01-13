@@ -22,12 +22,12 @@ load_config = {
 @pytest.fixture(scope='module')
 def loader():
     storer = BasicStorer()
-    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'))
+    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     publisher = BasicPublisher()
     publishers = {'client-001': publisher,
                   'client-002': publisher}
-    loader = Loader(depositor=depositor, archiver=archiver, publishers=publishers, storers=[storer])
+    loader = Loader(depositor=depositor, archiver=archiver, publisher=publishers, storer=storer)
     yield loader
 
 def test_exceptions(loader):

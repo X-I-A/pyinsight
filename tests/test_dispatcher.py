@@ -23,17 +23,17 @@ def dispatcher():
               [['gender', '!=', 'Male'], ['weight', '<', 100]]]
     publisher = BasicPublisher()
     storer = BasicStorer()
-    publishers = {'client-001': publisher,
-                  'client-002': publisher,
-                  'client-003': publisher,
-                  'client-004': publisher}
+    publisher = {'client-001': publisher,
+                 'client-002': publisher,
+                 'client-003': publisher,
+                 'client-004': publisher}
     subscription_list = [['test', 'aged_data', 'client-001', dest01, 't1', 'aged', None, None],
                          ['test', 'aged_data', 'client-002', dest02, 't2', 'aged', fields, None],
                          ['test', 'normal_data', 'client-003', dest03, 't3', 'aged', None, filters1],
                          ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1]]
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
-    dispatcher = Dispatcher(publishers=publishers,
-                            storers=[storer],
+    dispatcher = Dispatcher(publisher=publisher,
+                            storer=storer,
                             depositor=depositor,
                             subscription_list=subscription_list)
     dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
@@ -124,7 +124,7 @@ def test_send_normal_document(dispatcher):
     dispatcher.receive_data(normal_header, normal_data_body)
 
 def test_send_with_single_component(dispatcher):
-    dispatcher_1 = Dispatcher(publishers=dispatcher.publishers, subscription_list=dispatcher.subscription_list)
+    dispatcher_1 = Dispatcher(publisher=dispatcher.publisher, subscription_list=dispatcher.subscription_list)
     dispatcher_2 = Dispatcher(depositor=dispatcher.depositor)
 
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
@@ -136,10 +136,10 @@ def test_send_with_single_component(dispatcher):
     dispatcher_2.receive_data(header, data_header)
 
 def test_exceptions(dispatcher):
-    ko_publishers = dispatcher.publishers.copy()
-    ko_publishers.pop('client-003')
+    ko_publisher = dispatcher.publisher.copy()
+    ko_publisher.pop('client-003')
     with pytest.raises(TypeError):
-        ko_disp = Dispatcher(publishers=ko_publishers, subscription_list=dispatcher.subscription_list)
+        ko_disp = Dispatcher(publisher=ko_publisher, subscription_list=dispatcher.subscription_list)
 
     age_header = {'topic_id': 'test', 'table_id': 'aged_data',
                   'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'gcs',

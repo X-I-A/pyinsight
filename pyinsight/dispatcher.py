@@ -42,7 +42,7 @@ class Dispatcher(Insight):
 
         if 'subscription_list' in kwargs:
             subscription_list = kwargs['subscription_list']
-            if not all([item[2] in self.publishers for item in subscription_list]):
+            if not all([item[2] in self.publisher for item in subscription_list]):
                 self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
                 raise TypeError("INS-000006")
             else:
@@ -126,7 +126,7 @@ class Dispatcher(Insight):
         handlers = list()
         for config in self._iter_config_by_src_per_publisher(src_topic_id, src_table_id):
             for publisher_id, dest_list in config.items():
-                publisher = self.publishers.get(publisher_id)
+                publisher = self.publisher.get(publisher_id)
                 cur_handler = threading.Thread(target=self._dispatch_data,
                                                args=(header, tar_full_data, publisher, dest_list))
                 cur_handler.start()

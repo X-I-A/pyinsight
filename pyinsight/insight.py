@@ -65,9 +65,9 @@ class Insight():
     api_url = 'api.x-i-a.com'
     messager = BasicPublisher()
     if not os.path.exists(os.path.join('.', 'insight')):
-        os.mkdir(os.path.join('.', 'insight'))
+        os.mkdir(os.path.join('.', 'insight'))  # pragma: no cover
     if not os.path.exists(os.path.join('.', 'insight', 'messager')):
-        os.mkdir(os.path.join('.', 'insight', 'messager'))
+        os.mkdir(os.path.join('.', 'insight', 'messager'))  # pragma: no cover
     channel = os.path.join(os.path.join('.', 'insight', 'messager'))
     topic_cockpit = 'cockpit'
     topic_cleaner = 'cleaner'
@@ -85,33 +85,39 @@ class Insight():
             if not isinstance(archiver, Archiver):
                 self.logger.error("archiver should have type of Archiver", extra=self.log_context)
                 raise TypeError("INS-000007")
-            else:
-                self.archiver = archiver
+            self.archiver = archiver
 
         if 'depositor' in kwargs:
             depositor = kwargs['depositor']
             if not isinstance(depositor, Depositor):
                 self.logger.error("depositor should have type of Depositor", extra=self.log_context)
                 raise TypeError("INS-000002")
-            else:
-                self.depositor = depositor
+            self.depositor = depositor
 
-        if 'publishers' in kwargs:
-            publishers = kwargs['publishers']
-            if not all(isinstance(publisher, Publisher) for key, publisher in publishers.items()):
-                self.logger.error("publisher should have type of Publisher", extra=self.log_context)
-                raise TypeError("INS-000004")
+        if 'publisher' in kwargs:
+            publisher = kwargs['publisher']
+            if isinstance(publisher, dict):
+                if not all(isinstance(publisher, Publisher) for key, publisher in publisher.items()):
+                    self.logger.error("publisher should have type of Publisher", extra=self.log_context)
+                    raise TypeError("INS-000004")
             else:
-                self.publishers = publishers
+                if not isinstance(publisher, Publisher):
+                    self.logger.error("publisher should have type of Publisher", extra=self.log_context)
+                    raise TypeError("INS-000004")
+            self.publisher = publisher
 
-        if 'storers' in kwargs:
-            storers = kwargs['storers']
-            if not all(isinstance(storer, Storer) for storer in storers):
-                self.logger.error("storer should have type of Storer", extra=self.log_context)
-                raise TypeError("INS-000001")
+        if 'storer' in kwargs:
+            storer = kwargs['storer']
+            if isinstance(storer, dict):
+                if not all(isinstance(value, Storer) for key, value in storer.items()):
+                    self.logger.error("storer should have type of Storer", extra=self.log_context)
+                    raise TypeError("INS-000001")
+                self.storer_dict = self.get_storer_register_dict([value for key, value in storer.items()])
             else:
-                self.storers = storers
-                self.storer_dict = self.get_storer_register_dict(storers)
+                if not isinstance(storer, Storer):
+                    self.logger.error("storer should have type of Storer", extra=self.log_context)
+                    raise TypeError("INS-000001")
+                self.storer_dict = self.get_storer_register_dict([storer])
 
     @classmethod
     def set_internal_channel(cls, **kwargs):
