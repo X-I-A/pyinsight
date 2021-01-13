@@ -33,7 +33,7 @@ def dispatcher():
                          ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1]]
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     dispatcher = Dispatcher(publisher=publisher,
-                            storers=[storer],
+                            storer=storer,
                             depositor=depositor,
                             subscription_list=subscription_list)
     dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
