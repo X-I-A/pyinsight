@@ -8,7 +8,7 @@ from pyinsight.insight import Insight
 def insight():
     storer = BasicStorer()
     publishers = {'test-001': BasicPublisher()}
-    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'))
+    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     insight = Insight(storers=[storer], publishers=publishers, archiver=archiver, depositor=depositor)
     yield insight
@@ -55,8 +55,8 @@ def test_exceptions(insight):
     with pytest.raises(TypeError):
         wrong_ins = Insight(depositor=object())
     with pytest.raises(TypeError):
-        wrong_ins = Insight(publishers={'dummy': object()})
+        wrong_ins = Insight(publisher={'dummy': object()})
     with pytest.raises(TypeError):
-        wrong_ins = Insight(storers=[object()])
+        wrong_ins = Insight(storer=[object()])
     with pytest.raises(TypeError):
         insight.set_internal_channel(messager=object())

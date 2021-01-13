@@ -29,21 +29,21 @@ Insight.set_internal_channel(messager=messager,
 # Basic Unit definition
 depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
 depositor.size_limit = 2 ** 12
-archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'))
+archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
 subscriber = BasicSubscriber()
 storer = BasicStorer()
 translator = BasicTranslator()
 publisher = BasicPublisher()
 
 # Basic Unit group
-publishers = {'client-001': publisher,
-              'client-002': publisher}
+publisher = {'client-001': publisher,
+             'client-002': publisher}
 # Actor Definition
-dispatcher = Dispatcher(depositor=depositor, storers=[storer])
+dispatcher = Dispatcher(depositor=depositor, storer=storer)
 merger = Merger(depositor=depositor)
 packager = Packager(depositor=depositor, archiver=archiver)
-msg_loader = Loader(depositor=depositor, archiver=archiver, publishers=publishers)
-file_loader = Loader(depositor=depositor, archiver=archiver, storers=[storer], publishers=publishers)
+msg_loader = Loader(depositor=depositor, archiver=archiver, publisher=publisher)
+file_loader = Loader(depositor=depositor, archiver=archiver, storer=storer, publisher=publisher)
 cleaner = Cleaner(depositor=depositor, archiver=archiver)
 
 load_config1 = {
