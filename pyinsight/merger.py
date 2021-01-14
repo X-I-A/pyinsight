@@ -1,7 +1,7 @@
 import json
 import logging
-from xialib.depositor import Depositor
-from pyinsight.insight import Insight, backlog
+from xialib import backlog
+from pyinsight.insight import Insight
 
 __all__ = ['Merger']
 
@@ -14,7 +14,7 @@ class Merger(Insight):
     """
 
     def __init__(self, depositor, **kwargs):
-        super().__init__(depositor=depositor)
+        super().__init__(depositor=depositor, **kwargs)
         self.logger = logging.getLogger("Insight.Merger")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:

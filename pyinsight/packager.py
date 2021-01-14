@@ -2,9 +2,8 @@ import logging
 import json
 import gzip
 import base64
-from xialib.archiver import Archiver
-from xialib.depositor import Depositor
-from pyinsight.insight import Insight, backlog
+from xialib import backlog, Archiver, Depositor
+from pyinsight.insight import Insight
 
 __all__ = ['Packager']
 
@@ -22,8 +21,8 @@ class Packager(Insight):
     """
     package_size = 2 ** 26
 
-    def __init__(self, depositor: Depositor, archiver: Archiver, **kwargs):
-        super().__init__(depositor=depositor, archiver=archiver)
+    def __init__(self, depositor, archiver, **kwargs):
+        super().__init__(depositor=depositor, archiver=archiver, **kwargs)
         self.logger = logging.getLogger("Insight.Packager")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:

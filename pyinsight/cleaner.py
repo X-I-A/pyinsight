@@ -1,7 +1,6 @@
 import logging
-from xialib.archiver import Archiver
-from xialib.depositor import Depositor
-from pyinsight.insight import Insight, backlog
+from xialib import backlog, Archiver, Depositor
+from pyinsight.insight import Insight
 
 __all__ = ['Cleaner']
 
