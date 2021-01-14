@@ -4,10 +4,8 @@ import base64
 import logging
 import threading
 from typing import List, Dict, Tuple, Union
-from xialib.depositor import Depositor
-from xialib.publisher import Publisher
-from xialib.storer import Storer
-from pyinsight.insight import Insight, backlog
+from xialib import backlog, Depositor, Publisher, Storer
+from pyinsight.insight import Insight
 
 __all__ = ['Dispatcher']
 

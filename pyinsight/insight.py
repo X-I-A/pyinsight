@@ -2,15 +2,10 @@ import os
 import gzip
 import json
 import logging
-import traceback
-import datetime
-from functools import wraps
 from typing import List, Dict, Any
-from xialib import backlog
+from xialib import Service
 from xialib import BasicPublisher
 from xialib.storer import Storer
-from xialib.depositor import Depositor
-from xialib.archiver import Archiver
 from xialib.publisher import Publisher
 
 __all__ = ['Insight']
@@ -52,7 +47,7 @@ def _filter_column(line: dict, field_list):
     return {key: value for key, value in line.items() if key in field_list}
 
 
-class Insight():
+class Insight(Service):
     """Insight Application
 
     Attributes:
@@ -61,7 +56,6 @@ class Insight():
     Notes:
         Considering implement your own messager, channel and its related topic_ids
     """
-    log_level = logging.WARNING
     INSIGHT_FIELDS = ['_AGE', '_SEQ', '_NO', '_OP']
     api_url = 'api.x-i-a.com'
     messager = BasicPublisher()
@@ -78,46 +72,12 @@ class Insight():
     topic_backlog = 'backlog'
 
     def __init__(self, **kwargs):
-        self.logger = logging.getLogger("Insight")
-        self.log_context = {'context': ''}
-        self.logger.setLevel(self.log_level)
-        if 'archiver' in kwargs:
-            archiver = kwargs['archiver']
-            if not isinstance(archiver, Archiver):
-                self.logger.error("archiver should have type of Archiver", extra=self.log_context)
-                raise TypeError("INS-000007")
-            self.archiver = archiver
-
-        if 'depositor' in kwargs:
-            depositor = kwargs['depositor']
-            if not isinstance(depositor, Depositor):
-                self.logger.error("depositor should have type of Depositor", extra=self.log_context)
-                raise TypeError("INS-000002")
-            self.depositor = depositor
-
-        if 'publisher' in kwargs:
-            publisher = kwargs['publisher']
-            if isinstance(publisher, dict):
-                if not all(isinstance(publisher, Publisher) for key, publisher in publisher.items()):
-                    self.logger.error("publisher should have type of Publisher", extra=self.log_context)
-                    raise TypeError("INS-000004")
-            else:
-                if not isinstance(publisher, Publisher):
-                    self.logger.error("publisher should have type of Publisher", extra=self.log_context)
-                    raise TypeError("INS-000004")
-            self.publisher = publisher
-
+        super().__init__(**kwargs)
         if 'storer' in kwargs:
             storer = kwargs['storer']
-            if isinstance(storer, dict):
-                if not all(isinstance(value, Storer) for key, value in storer.items()):
-                    self.logger.error("storer should have type of Storer", extra=self.log_context)
-                    raise TypeError("INS-000001")
+            if isinstance(kwargs['storer'], dict):
                 self.storer_dict = self.get_storer_register_dict([value for key, value in storer.items()])
             else:
-                if not isinstance(storer, Storer):
-                    self.logger.error("storer should have type of Storer", extra=self.log_context)
-                    raise TypeError("INS-000001")
                 self.storer_dict = self.get_storer_register_dict([storer])
 
     @classmethod

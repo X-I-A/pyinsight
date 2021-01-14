@@ -4,11 +4,8 @@ import base64
 import gzip
 import hashlib
 from typing import Union, List, Dict, Any
-from xialib.archiver import Archiver
-from xialib.depositor import Depositor
-from xialib.publisher import Publisher
-from xialib.storer import Storer
-from pyinsight.insight import Insight, backlog, get_fields_from_filter
+from xialib import backlog
+from pyinsight.insight import Insight, get_fields_from_filter
 
 
 __all__ = ['Loader']
@@ -25,7 +22,7 @@ class Loader(Insight):
         archiver (:obj:`Archiver`): Data is saved to archiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id and its related publisher object
     """
-    def __init__(self, depositor: Depositor, publisher: Dict[str, Publisher], **kwargs):
+    def __init__(self, depositor, publisher, **kwargs):
         super().__init__(depositor=depositor, publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Loader")
         self.logger.level = self.log_level
