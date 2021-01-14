@@ -6,6 +6,7 @@ import traceback
 import datetime
 from functools import wraps
 from typing import List, Dict, Any
+from xialib import backlog
 from xialib import BasicPublisher
 from xialib.storer import Storer
 from xialib.depositor import Depositor
@@ -224,34 +225,3 @@ class Insight():
         data_header.pop('evnet_token', None)
         return resp
 
-def backlog(func):
-    """Send all errors to backlog
-
-    """
-    @wraps(func)
-    def wrapper(a, *args, **kwargs):
-        try:
-            return func(a, *args, **kwargs)
-        except Exception as e:
-            start_seq = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
-            exception_msg = format(e)
-            header = {'topic_id': 'insight',
-                      'table_id': 'GENERAL',
-                      'data_encode': 'gzip',
-                      'data_format': 'record',
-                      'data_spec': 'x-i-a',
-                      'data_store': 'body',
-                      'start_seq': start_seq}
-            body = [{'_SEQ': start_seq,
-                     'action_type': a.__class__.__name__,
-                     'function': func.__name__,
-                     'exception_type': e.__class__.__name__,
-                     'exception_msg': exception_msg,
-                     'args': args,
-                     'kwargs': kwargs,
-                     'trace': traceback.format_exc()}]
-            if format(e)[:3] in ['XIA', 'INS', 'XED', 'AGT']:
-                header['table_id'] = exception_msg
-            Insight.trigger_backlog(header, body)
-            return True
-    return wrapper
