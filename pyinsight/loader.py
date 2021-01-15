@@ -218,7 +218,7 @@ class Loader(Insight):
             For the store_path, please including the os path seperator at the end
         """
         if any([key not in load_config for key in ['publisher_id', "src_topic_id", "src_table_id"]]):
-            self.logger.error("Load Configuration Format Error")
+            self.logger.error("Load Configuration Format Error", extra=self.log_context)
             raise ValueError("INS-000011")
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         destination = load_config['destination']
