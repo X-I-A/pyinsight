@@ -4,7 +4,7 @@ import base64
 import logging
 import threading
 from typing import List, Dict, Tuple, Union
-from xialib import backlog, Depositor, Publisher, Storer, BasicFlower
+from xialib import backlog, Depositor, Publisher, Storer, BasicFlower, SegmentFlower
 from pyinsight.insight import Insight
 
 __all__ = ['Dispatcher']
@@ -18,11 +18,16 @@ class Dispatcher(Insight):
         storer_dict (:obj:`list`): data_store Type and its related Storer
         depoistor (:obj:`Depositor`): Depositor attach to this receiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id, publisher object
-        subscription_list (:obj:`dict`): Subscription Lists (
-            key: source topic id, source table id
-            value: list of dictionary (
-            key: publisher id
-            value: (target destination, target topic id, target table id, field list, filters list)))
+        subscription_list (:obj:`list` of :obj:`list`): Subscription Lists (
+            source topic id,
+            source table id,
+            publisher id,
+            target destination,
+            target topic id,
+            configuration id,
+            field list,
+            filters list,
+            segment_config
 
     Notes:
         filter list must in the NDF form of list(list(list)))
@@ -49,7 +54,7 @@ class Dispatcher(Insight):
         config_list = [cfg for cfg in self.subscription_list if cfg[0] == src_topic_id and cfg[1] == src_table_id]
         publisher_list = set([cfg[2] for cfg in config_list])
         for publisher_id in publisher_list:
-            dest_list = [cfg[3:8] for cfg in config_list if cfg[2] == publisher_id]
+            dest_list = [cfg[3:9] for cfg in config_list if cfg[2] == publisher_id]
             yield {publisher_id: dest_list}
 
 
@@ -57,16 +62,25 @@ class Dispatcher(Insight):
                       dest_list: List[Tuple[str, str, str, list, list]]):
         for destination in dest_list:
             tar_header = header.copy()
-            tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
+            tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
+            tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
+            tar_header['insight_id'] = self.insight_id
             tar_header['topic_id'] = destination[1]
-            tar_header['table_id'] = destination[2]
+            tar_header['config_id'] = destination[2]
+            tar_header.pop('table_id', None)
             basic_flower = BasicFlower(destination[3], destination[4])
+            segment_flower = SegmentFlower(destination[5])
             tar_data = basic_flower.proceed(tar_header, full_data)[1]
+            tar_header, tar_data = segment_flower.proceed(tar_header, tar_data)
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
             self.logger.info("Dispatch to {}-{}-{}".format(destination[0],
                                                            destination[1],
                                                            destination[2]), extra=self.log_context)
+            if int(tar_header.get('age', 0)) == 1:
+                self.logger.info("Sending table creation event", extra=self.log_context)
+                tar_header['event_type'] = 'target_table_update'
+                self.trigger_cockpit(tar_header, tar_data)
             publisher.publish(destination[0], destination[1], tar_header,
                               gzip.compress(json.dumps(tar_data, ensure_ascii=False).encode()))
 

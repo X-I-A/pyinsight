@@ -26,10 +26,10 @@ def dispatcher():
                  'client-002': publisher,
                  'client-003': publisher,
                  'client-004': publisher}
-    subscription_list = [['test', 'aged_data', 'client-001', dest01, 't1', 'aged', None, None],
-                         ['test', 'aged_data', 'client-002', dest02, 't2', 'aged', fields, None],
-                         ['test', 'normal_data', 'client-003', dest03, 't3', 'aged', None, filters1],
-                         ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1]]
+    subscription_list = [['test', 'aged_data', 'client-001', dest01, 't1', 'aged', None, None, None],
+                         ['test', 'aged_data', 'client-002', dest02, 't2', 'aged', fields, None, None],
+                         ['test', 'normal_data', 'client-003', dest03, 't3', 'aged', None, filters1, None],
+                         ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1, None]]
     dispatcher = Dispatcher(publisher=publisher,
                             subscription_list=subscription_list)
     dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))

@@ -4,7 +4,7 @@ import base64
 import gzip
 import hashlib
 from typing import Union, List, Dict, Any
-from xialib import backlog, BasicFlower
+from xialib import backlog, BasicFlower, SegmentFlower
 from pyinsight.insight import Insight
 
 
@@ -35,12 +35,16 @@ class Loader(Insight):
         self.active_publisher = None
 
     # Head Load: Simple Sent
-    def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id, fields) -> bool:
+    def _header_load(self, header_dict, destination, tar_topic_id, tar_config_id, fields) -> bool:
         tar_header = header_dict.copy()
         tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
-        tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
+        tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
+        tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
+        tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
+        tar_header['insight_id'] = self.insight_id
         tar_header['topic_id'] = tar_topic_id
-        tar_header['table_id'] = tar_table_id
+        tar_header['config_id'] = tar_config_id
+        tar_header.pop('table_id', None)
         tar_header['data_encode'] = 'gzip'
         tar_header['data_store'] = 'body'
         tar_header.pop('data', None)
@@ -53,7 +57,7 @@ class Loader(Insight):
         return True
 
     # Normal Load : Send One by One without duplications
-    def _normal_load(self, header_dict, destination, tar_topic_id, tar_table_id, start_key, end_key, fields, filters):
+    def _normal_load(self, header_dict, destination, tar_topic_id, tar_config_id, start_key, end_key, fields, filters):
         load_history = dict()
         for doc_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial'], start_key):
             doc_dict = self.depositor.get_header_from_ref(doc_ref)
@@ -66,13 +70,17 @@ class Loader(Insight):
             # Case 3: Normal -> Dispatch Document
             tar_header = doc_dict.copy()
             tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
+            tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
             tar_body_data = [line for line in tar_body_data
                 if (line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)) not in load_history]
             load_history.update({(line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)): None
                                  for line in tar_body_data})
-            tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
+            tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
+            tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
+            tar_header['insight_id'] = self.insight_id
             tar_header['topic_id'] = tar_topic_id
-            tar_header['table_id'] = tar_table_id
+            tar_header['config_id'] = tar_config_id
+            tar_header.pop('table_id', None)
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
             tar_header.pop('data', None)
@@ -86,7 +94,7 @@ class Loader(Insight):
     def _package_load(self, header_dict, load_config: Dict[str, Any]) -> bool:
         start_doc_ref, end_doc_ref = None, None
         destination = load_config['destination']
-        tar_topic_id, tar_table_id = load_config['tar_topic_id'], load_config['tar_table_id']
+        tar_topic_id, tar_config_id = load_config['tar_topic_id'], load_config['tar_config_id']
         start_key, end_key = load_config['start_key'], load_config['end_key']
         fields, filters = load_config['fields'], load_config['filters']
         # Preparation: Ajust the start_key / end_key
@@ -128,10 +136,14 @@ class Loader(Insight):
                                           | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
                     self.archiver.load_archive(tar_header['merge_key'], needed_fields)
                     tar_body_data = self.basic_flower.proceed(tar_header, self.archiver.get_data())[1]
+                    tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
                 # Data Setting
-                tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
+                tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
+                tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
+                tar_header['insight_id'] = self.insight_id
                 tar_header['topic_id'] = tar_topic_id
-                tar_header['table_id'] = tar_table_id
+                tar_header['config_id'] = tar_config_id
+                tar_header.pop('table_id', None)
                 tar_header['data_encode'] = 'gzip'
                 tar_header['data_store'] = 'body'
                 tar_header['data_format'] = 'record'
@@ -206,9 +218,10 @@ class Loader(Insight):
             src_table_id (:obj:`str`): Source table id
             destination (:obj:`str`): Destination used by publisher
             tar_topic_id (:obj:`str`): Target topic id
-            tar_table_id (:obj:`str`): Target table id
+            tar_config_id (:obj:`str`): Target configuration id
             fields (:obj:`list`): fields to be loaded
             filters (:obj:`list`): data filter
+            segment (:obj:`dict`): Segment Configuration
             load_type (:obj:`str`): 'initial', 'header', 'normal', 'packaged'
             start_key (:obj:`str`): load start merge key
             end_key (:obj:`str`): load end merge key
@@ -221,11 +234,13 @@ class Loader(Insight):
             raise ValueError("INS-000011")
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         destination = load_config['destination']
-        tar_topic_id, tar_table_id = load_config['tar_topic_id'], load_config['tar_table_id']
-        fields, filters = load_config['fields'], load_config['filters']
+        tar_topic_id, tar_config_id = load_config['tar_topic_id'], load_config['tar_config_id']
         self.log_context['context'] = src_topic_id + '-' + src_table_id + '|' + \
-                                      tar_topic_id + '-' + tar_table_id
+                                      tar_topic_id + '-' + tar_config_id
+        fields, filters = load_config.get('fields', None), load_config.get('filters', None)
         self.basic_flower = BasicFlower(fields, filters)
+        segment_config = load_config.get('segment', None)
+        self.segment_flower = SegmentFlower(segment_config)
         # Step 1: Get the correct task taker
         self.active_publisher = self.publisher.get(load_config['publisher_id'])
         self.depositor.set_current_topic_table(src_topic_id, src_table_id)
@@ -239,7 +254,7 @@ class Loader(Insight):
 
         if load_type == 'initial':
             # self.logger.info("Header to be loaded", extra=self.log_context)
-            # self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
+            # self._header_load(header_dict, destination, tar_topic_id, tar_config_id, fields)
             # Get Start key or End key
             start_doc_ref, end_doc_ref, start_merge_ref = None, None, None
             for start_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial']):
@@ -267,17 +282,17 @@ class Loader(Insight):
                 self.logger.info("Package load range {}-{}".format(start_key, start_merge_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config)
                 self.logger.info("Document load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
-                self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,
+                self._normal_load(header_dict, destination, tar_topic_id, tar_config_id,
                                   start_merge_key, end_key, fields, filters)
                 package_load_config.update({'load_type': 'package', 'start_key': start_merge_key, 'end_key': end_key})
                 self.logger.info("Package load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config)
             return True
         elif load_type == 'header':
-            return self._header_load(header_dict, destination, tar_topic_id, tar_table_id, fields)
+            return self._header_load(header_dict, destination, tar_topic_id, tar_config_id, fields)
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
-            return self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,
+            return self._normal_load(header_dict, destination, tar_topic_id, tar_config_id,
                                      start_key, end_key, fields, filters)
         elif load_type == 'package':
             start_key, end_key = load_config['start_key'], load_config['end_key']

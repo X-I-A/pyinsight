@@ -12,7 +12,7 @@ load_config = {
     'src_table_id': 'aged_data',
     'destination': os.path.join('.', 'output', 'loader'),
     'tar_topic_id': 'test_unit',
-    'tar_table_id': 'aged_unit',
+    'tar_config_id': 'aged_unit',
     'fields': ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers'],
     'filters': [[['gender', '=', 'Male'], ['height', '>=', 175]],
                 [['gender', '=', 'Female'], ['weight', '<=', 100]]],
