@@ -22,8 +22,8 @@ class Loader(Insight):
         archiver (:obj:`Archiver`): Data is saved to archiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id and its related publisher object
     """
-    def __init__(self, depositor, publisher: dict, **kwargs):
-        super().__init__(depositor=depositor, publisher=publisher, **kwargs)
+    def __init__(self, depositor, archiver, publisher: dict, **kwargs):
+        super().__init__(archiver=archiver, depositor=depositor, publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Loader")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
@@ -32,7 +32,6 @@ class Loader(Insight):
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
-        self.active_storer = None
         self.active_publisher = None
 
     # Head Load: Simple Sent

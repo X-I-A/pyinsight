@@ -14,18 +14,7 @@ from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
 from pyinsight.receiver import Receiver
 
-# Insight.log_level = logging.INFO
 
-# Insight Level Settings
-messager = BasicPublisher()
-Insight.set_internal_channel(messager=messager,
-                             topic_backlog='backlog',
-                             topic_cleaner='cleaner',
-                             topic_cockpit='cockpit',
-                             topic_loader='loader',
-                             topic_merger='merger',
-                             topic_packager='packager',
-                             channel=os.path.join('.', 'insight', 'messager'))
 
 # Basic Unit definition
 depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
@@ -69,6 +58,18 @@ def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
         subscriber.ack(source, subscription_id, msg_id)
 
 def purger():
+    # Insight.log_level = logging.INFO
+    # Insight Level Settings
+    messager = BasicPublisher()
+    Insight.set_internal_channel(messager=messager,
+                                 topic_backlog='backlog',
+                                 topic_cleaner='cleaner',
+                                 topic_cockpit='cockpit',
+                                 topic_loader='loader',
+                                 topic_merger='merger',
+                                 topic_packager='packager',
+                                 channel=os.path.join('.', 'insight', 'messager'))
+
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         msg_id = subscriber.unpack_message(msg)[2]
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)

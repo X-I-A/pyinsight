@@ -27,7 +27,7 @@ def loader():
     publisher = BasicPublisher()
     publishers = {'client-001': publisher,
                   'client-002': publisher}
-    loader = Loader(depositor=depositor, archiver=archiver, publisher=publishers, storer=storer)
+    loader = Loader(depositor=depositor, archiver=archiver, publisher=publishers)
     yield loader
 
 def test_exceptions(loader):
