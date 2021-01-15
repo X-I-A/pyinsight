@@ -71,14 +71,9 @@ class Insight(Service):
     topic_loader = 'loader'
     topic_backlog = 'backlog'
 
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        if 'storer' in kwargs:
-            storer = kwargs['storer']
-            if isinstance(kwargs['storer'], dict):
-                self.storer_dict = self.get_storer_register_dict([value for key, value in storer.items()])
-            else:
-                self.storer_dict = self.get_storer_register_dict([storer])
 
     @classmethod
     def set_internal_channel(cls, **kwargs):
@@ -112,13 +107,6 @@ class Insight(Service):
         if 'topic_backlog' in kwargs:
             Insight.topic_backlog = kwargs['topic_backlog']
 
-    @classmethod
-    def get_storer_register_dict(cls, storer_list: List[Storer]) -> Dict[str, Storer]:
-        register_dict = dict()
-        for storer in storer_list:
-            for store_type in storer.store_types:
-                register_dict[store_type] = storer
-        return register_dict
 
     @classmethod
     def get_minimum_fields(cls, field_list, ndf_filters):
@@ -184,4 +172,3 @@ class Insight(Service):
         data_header.pop('event_type', None)
         data_header.pop('evnet_token', None)
         return resp
-

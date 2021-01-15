@@ -11,3 +11,4 @@ Error Codes
 * INS-000008: Subsciption list contains no publisher
 * INS-000009: Insight ID must be an existed domain
 * INS-000010: Unknown event type to prepare call
+* INS-000011: Load Configuration Format Error

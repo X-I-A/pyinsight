@@ -4,7 +4,7 @@ import base64
 import logging
 import threading
 from typing import List, Dict, Tuple, Union
-from xialib import backlog, Depositor, Publisher, Storer
+from xialib import backlog, Depositor, Publisher, Storer, BasicFlower
 from pyinsight.insight import Insight
 
 __all__ = ['Dispatcher']
@@ -27,8 +27,8 @@ class Dispatcher(Insight):
     Notes:
         filter list must in the NDF form of list(list(list)))
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, subscription_list: list, publisher: dict, **kwargs):
+        super().__init__(publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Dispatcher")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
@@ -38,18 +38,12 @@ class Dispatcher(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-        if 'subscription_list' in kwargs:
-            subscription_list = kwargs['subscription_list']
-            if not all([item[2] in self.publisher for item in subscription_list]):
-                self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
-                raise TypeError("INS-000006")
-            else:
-                self.subscription_list = subscription_list
-        else:
-            self.subscription_list = []
 
-        if 'depositor' not in kwargs:
-            self.depositor = None
+        if not all([item[2] in self.publisher for item in subscription_list]):
+            self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
+            raise TypeError("INS-000006")
+        else:
+            self.subscription_list = subscription_list
 
     def _iter_config_by_src_per_publisher(self, src_topic_id: str, src_table_id: str):
         config_list = [cfg for cfg in self.subscription_list if cfg[0] == src_topic_id and cfg[1] == src_table_id]
@@ -66,11 +60,8 @@ class Dispatcher(Insight):
             tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = destination[1]
             tar_header['table_id'] = destination[2]
-            if int(tar_header.get('age', 0)) == 1:
-                fields = destination[3] if destination[3] else [field['field_name'] for field in full_data]
-                tar_data = [field for field in full_data if field['field_name'] in fields or field['key_flag']]
-            else:
-                tar_data = self.filter_table(full_data, destination[3], destination[4])
+            basic_flower = BasicFlower(destination[3], destination[4])
+            tar_data = basic_flower.proceed(tar_header, full_data)[1]
             tar_header['data_encode'] = 'gzip'
             tar_header['data_store'] = 'body'
             self.logger.info("Dispatch to {}-{}-{}".format(destination[0],
@@ -79,11 +70,12 @@ class Dispatcher(Insight):
             publisher.publish(destination[0], destination[1], tar_header,
                               gzip.compress(json.dumps(tar_data, ensure_ascii=False).encode()))
 
+
     @backlog
-    def receive_data(self, header: dict, data: Union[List[dict], str, bytes], **kwargs) -> bool:
+    def dispatch_data(self, header: dict, data: Union[List[dict], str, bytes], **kwargs) -> bool:
         """ Public function
 
-        This function will get the pushed data and save it to depositor and publish them to related subscribers
+        This function will get the pushed data and publish them to related subscribers
 
         Args:
             header (:obj:`str`): Document Header
@@ -100,14 +92,7 @@ class Dispatcher(Insight):
         src_table_id = header['table_id']
         self.log_context['context'] = '-'.join([src_topic_id, src_table_id])
         # Step 1: Data Preparation
-        if header['data_store'] != 'body':
-            active_storer = self.storer_dict.get(header['data_store'], None)
-            if active_storer is None:
-                self.logger.error("No storer for store type {}".format(header['data_store']), extra=self.log_context)
-                raise ValueError("INS-000005")
-            header['data_store'] = 'body'
-            tar_full_data = json.loads(gzip.decompress(active_storer.read(data)).decode())
-        elif isinstance(data, list):
+        if isinstance(data, list):
             tar_full_data = data
         elif header['data_encode'] == 'blob':
             tar_full_data = json.loads(data.decode())
@@ -117,10 +102,7 @@ class Dispatcher(Insight):
             tar_full_data = json.loads(gzip.decompress(data).decode())
         else:
             tar_full_data = json.loads(data)
-        # Step 2: Might need to send events
-        if 'event_type' in header:
-            self.trigger_cockpit(header, tar_full_data)
-        # Step 3: Multi-thread publish
+        # Step 2: Multi-thread publish
         handlers = list()
         for config in self._iter_config_by_src_per_publisher(src_topic_id, src_table_id):
             for publisher_id, dest_list in config.items():
@@ -129,23 +111,7 @@ class Dispatcher(Insight):
                                                args=(header, tar_full_data, publisher, dest_list))
                 cur_handler.start()
                 handlers.append(cur_handler)
-        # Step 4.1: Add to depositor if depositor is initialized
-        if self.depositor:
-            saved_headers = self.depositor.add_document(header, tar_full_data)
-            # Step 4.2: Check if the first level merge process should be triggered
-            for saved_header in saved_headers:
-                if saved_header.get('merge_level', 0) > 0 and saved_header.get('merge_status', '') != 'header':
-                    self.logger.info("Trigger Merging", extra=self.log_context)
-                    self.trigger_merge(saved_header['topic_id'], saved_header['table_id'],
-                                       saved_header['merge_key'], 1, saved_header['merge_level'])
-                # Step 4.3: Header related operations
-                if saved_header['merge_status'] == 'header':
-                    self.logger.info("Sending table creation event", extra=self.log_context)
-                    saved_header['event_type'] = 'target_table_update'
-                    self.trigger_cockpit(saved_header, tar_full_data)
-                    self.logger.info("Trigger Cleaning", extra=self.log_context)
-                    self.trigger_clean(saved_header['topic_id'], saved_header['table_id'], saved_header['start_seq'])
-        # Step 4.4: Wait until all the dispatch thread are finished
+        # Step 3: Wait until all the dispatch thread are finished
         for handler in handlers:
             handler.join()
         return True

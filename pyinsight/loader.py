@@ -4,8 +4,8 @@ import base64
 import gzip
 import hashlib
 from typing import Union, List, Dict, Any
-from xialib import backlog
-from pyinsight.insight import Insight, get_fields_from_filter
+from xialib import backlog, BasicFlower
+from pyinsight.insight import Insight
 
 
 __all__ = ['Loader']
@@ -22,8 +22,8 @@ class Loader(Insight):
         archiver (:obj:`Archiver`): Data is saved to archiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id and its related publisher object
     """
-    def __init__(self, depositor, publisher, **kwargs):
-        super().__init__(depositor=depositor, publisher=publisher, **kwargs)
+    def __init__(self, depositor, archiver, publisher: dict, **kwargs):
+        super().__init__(archiver=archiver, depositor=depositor, publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Loader")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
@@ -32,14 +32,12 @@ class Loader(Insight):
             console_handler = logging.StreamHandler()
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
-        self.active_storer = None
         self.active_publisher = None
 
     # Head Load: Simple Sent
     def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id, fields) -> bool:
         tar_header = header_dict.copy()
-        tar_body_data = self.depositor.get_data_from_header(tar_header)
-        tar_body_data = [field for field in tar_body_data if field['field_name'] in fields or field['key_flag']]
+        tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
         tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
         tar_header['topic_id'] = tar_topic_id
         tar_header['table_id'] = tar_table_id
@@ -67,12 +65,11 @@ class Loader(Insight):
                 continue  # pragma: no cover
             # Case 3: Normal -> Dispatch Document
             tar_header = doc_dict.copy()
-            tar_body_data = self.depositor.get_data_from_header(tar_header)
+            tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
             tar_body_data = [line for line in tar_body_data
                 if (line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)) not in load_history]
             load_history.update({(line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)): None
                                  for line in tar_body_data})
-            tar_body_data = self.filter_table(tar_body_data, fields, filters)
             tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
             tar_header['topic_id'] = tar_topic_id
             tar_header['table_id'] = tar_table_id
@@ -130,36 +127,20 @@ class Loader(Insight):
                                           | set(self.INSIGHT_FIELDS)
                                           | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
                     self.archiver.load_archive(tar_header['merge_key'], needed_fields)
-                    tar_body_data = self.archiver.get_data()
-                    tar_body_data = self.filter_table(tar_body_data, fields, filters)
-                if load_config.get('data_store', 'body') == 'body':
-                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
-                    tar_header['topic_id'] = tar_topic_id
-                    tar_header['table_id'] = tar_table_id
-                    tar_header['data_encode'] = 'gzip'
-                    tar_header['data_store'] = 'body'
-                    tar_header['data_format'] = 'record'
-                    tar_header.pop('data', None)
-                    self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
-                                     extra=self.log_context)
-                    self.active_publisher.publish(destination, tar_topic_id, tar_header,
-                                                  gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
-                    return True
-                else:
-                    location = load_config['store_path'] + \
-                        hashlib.md5(tar_header['merge_key'].encode()).hexdigest()[:4] + '-' + \
-                        str(int(tar_header['start_seq']) + int(tar_header.get('age', 0))) + '.gz'
-                    self.active_storer.write(gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()),
-                                             location)
-                    tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
-                    tar_header['topic_id'] = tar_topic_id
-                    tar_header['table_id'] = tar_table_id
-                    tar_header['data_encode'] = 'gzip'
-                    tar_header['data_store'] = load_config['data_store']
-                    tar_header['data_format'] = 'record'
-                    tar_header.pop('data', None)
-                    self.active_publisher.publish(destination, tar_topic_id, tar_header, location)
-                    return True
+                    tar_body_data = self.basic_flower.proceed(tar_header, self.archiver.get_data())[1]
+                # Data Setting
+                tar_header['source_id'] = tar_header.get('source_id', tar_header['table_id'])
+                tar_header['topic_id'] = tar_topic_id
+                tar_header['table_id'] = tar_table_id
+                tar_header['data_encode'] = 'gzip'
+                tar_header['data_store'] = 'body'
+                tar_header['data_format'] = 'record'
+                tar_header.pop('data', None)
+                self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
+                                 extra=self.log_context)
+                self.active_publisher.publish(destination, tar_topic_id, tar_header,
+                                              gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
+                return True
         # Step 2: Get the right start key
         for right_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], mid_key, False, 0, False):
             right_start_key = self.depositor.get_header_from_ref(right_doc_ref).get('sort_key')
@@ -202,11 +183,12 @@ class Loader(Insight):
         return new_dnf_filter
 
     def _check_has_needed_data(self, ndf_filters: List[List[list]], catalog: dict) -> bool:
-        field_list = [fn for fn in get_fields_from_filter(ndf_filters) if catalog.get(fn, {}).get('value', []) != []]
+        field_list = [fn for fn in BasicFlower.get_fields_from_filter(ndf_filters)
+                      if catalog.get(fn, {}).get('value', []) != []]
         for field in field_list:
             data_list = [{field: value} for value in catalog[field]['value']]
             new_filter = self._get_single_dnf_field(ndf_filters, field, catalog[field]['type'])
-            data_list = self.filter_table_dnf(data_list, new_filter)
+            data_list = BasicFlower.filter_table_dnf(data_list, new_filter)
             if not data_list:
                 return False
         return True
@@ -227,9 +209,6 @@ class Loader(Insight):
             tar_table_id (:obj:`str`): Target table id
             fields (:obj:`list`): fields to be loaded
             filters (:obj:`list`): data filter
-            data_store (:obj:`str`): data store type (use Storer instead of message body)
-            store_path (:obj:`str`): save path prefix. Full filename will be
-                store_path + 4 first digits of hash(merge_key) + '-' + merge_key + '.' + merge_status
             load_type (:obj:`str`): 'initial', 'header', 'normal', 'packaged'
             start_key (:obj:`str`): load start merge key
             end_key (:obj:`str`): load end merge key
@@ -237,20 +216,18 @@ class Loader(Insight):
         Notes:
             For the store_path, please including the os path seperator at the end
         """
+        if any([key not in load_config for key in ['publisher_id', "src_topic_id", "src_table_id"]]):
+            self.logger.error("Load Configuration Format Error", extra=self.log_context)
+            raise ValueError("INS-000011")
         src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
         destination = load_config['destination']
         tar_topic_id, tar_table_id = load_config['tar_topic_id'], load_config['tar_table_id']
-        fields, filers = load_config['fields'], load_config['filters']
+        fields, filters = load_config['fields'], load_config['filters']
         self.log_context['context'] = src_topic_id + '-' + src_table_id + '|' + \
                                       tar_topic_id + '-' + tar_table_id
+        self.basic_flower = BasicFlower(fields, filters)
         # Step 1: Get the correct task taker
         self.active_publisher = self.publisher.get(load_config['publisher_id'])
-        if load_config.get('data_store', 'body') != 'body':
-            self.active_storer = self.storer_dict.get(load_config['data_store'], None)
-            if not self.active_storer:
-                self.logger.error("No storer for store type {}".format(load_config['data_store']),
-                                  extra=self.log_context)
-                raise ValueError("INS-000005")
         self.depositor.set_current_topic_table(src_topic_id, src_table_id)
         self.archiver.set_current_topic_table(src_topic_id, src_table_id)
         load_type = load_config.get('load_type', 'unknown')
@@ -291,7 +268,7 @@ class Loader(Insight):
                 self._package_load(header_dict, package_load_config)
                 self.logger.info("Document load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,
-                                  start_merge_key, end_key, fields, filers)
+                                  start_merge_key, end_key, fields, filters)
                 package_load_config.update({'load_type': 'package', 'start_key': start_merge_key, 'end_key': end_key})
                 self.logger.info("Package load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
                 self._package_load(header_dict, package_load_config)
@@ -301,7 +278,7 @@ class Loader(Insight):
         elif load_type == 'normal':
             start_key, end_key = load_config['start_key'], load_config['end_key']
             return self._normal_load(header_dict, destination, tar_topic_id, tar_table_id,
-                                     start_key, end_key, fields, filers)
+                                     start_key, end_key, fields, filters)
         elif load_type == 'package':
             start_key, end_key = load_config['start_key'], load_config['end_key']
             self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)

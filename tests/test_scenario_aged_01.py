@@ -12,19 +12,9 @@ from pyinsight.dispatcher import Dispatcher
 from pyinsight.loader import Loader
 from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight
+from pyinsight.receiver import Receiver
 
-# Insight.log_level = logging.INFO
 
-# Insight Level Settings
-messager = BasicPublisher()
-Insight.set_internal_channel(messager=messager,
-                             topic_backlog='backlog',
-                             topic_cleaner='cleaner',
-                             topic_cockpit='cockpit',
-                             topic_loader='loader',
-                             topic_merger='merger',
-                             topic_packager='packager',
-                             channel=os.path.join('.', 'insight', 'messager'))
 
 # Basic Unit definition
 depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
@@ -39,7 +29,7 @@ publisher = BasicPublisher()
 publisher = {'client-001': publisher,
              'client-002': publisher}
 # Actor Definition
-dispatcher = Dispatcher(depositor=depositor, storer=storer)
+receiver = Receiver(depositor=depositor)
 merger = Merger(depositor=depositor)
 packager = Packager(depositor=depositor, archiver=archiver)
 msg_loader = Loader(depositor=depositor, archiver=archiver, publisher=publisher)
@@ -59,21 +49,6 @@ load_config1 = {
     'load_type': 'initial'
 }
 
-load_config2 = {
-    'publisher_id': 'client-002',
-    'src_topic_id': 'scenario_01',
-    'src_table_id': 'aged_data',
-    'destination': os.path.join('.', 'output', 'loader'),
-    'tar_topic_id': 'test_02',
-    'tar_table_id': 'aged_02',
-    'fields': ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers'],
-    'filters': [[['gender', '=', 'Male'], ['height', '>=', 175]],
-              [['gender', '=', 'Female'], ['weight', '<=', 100]]],
-    'load_type': 'initial',
-    'data_store': 'file',
-    'store_path': os.path.join('.', 'output', 'storer') + os.path.sep
-}
-
 def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
     header, data, msg_id = s.unpack_message(message)
     header.pop('data_spec')
@@ -83,6 +58,18 @@ def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
         subscriber.ack(source, subscription_id, msg_id)
 
 def purger():
+    # Insight.log_level = logging.INFO
+    # Insight Level Settings
+    messager = BasicPublisher()
+    Insight.set_internal_channel(messager=messager,
+                                 topic_backlog='backlog',
+                                 topic_cleaner='cleaner',
+                                 topic_cockpit='cockpit',
+                                 topic_loader='loader',
+                                 topic_merger='merger',
+                                 topic_packager='packager',
+                                 channel=os.path.join('.', 'insight', 'messager'))
+
     for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
         msg_id = subscriber.unpack_message(msg)[2]
         subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
@@ -108,7 +95,7 @@ def normal_data_test():
         header = {'topic_id': 'scenario_01', 'table_id': 'normal_data',
                   'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
                   'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
-    dispatcher.receive_data(header, data_header)
+    receiver.receive_data(header, data_header)
 
     # Normal Data Receive
     with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
@@ -119,7 +106,7 @@ def normal_data_test():
     translator.compile(normal_header, data_body)
     normal_data_body = [translator.get_translated_line(item, start_seq='20201113222500001240') for item in data_body]
     normal_header['data_spec'] = 'x-i-a'
-    dispatcher.receive_data(normal_header, normal_data_body)
+    receiver.receive_data(normal_header, normal_data_body)
 
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -139,7 +126,7 @@ def aged_data_test():
         header = {'topic_id': 'scenario_01', 'table_id': 'aged_data', 'aged': 'True',
                   'data_encode': 'gzip', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
                   'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
-    dispatcher.receive_data(header, data_header)
+    receiver.receive_data(header, data_header)
 
     with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
         data_body = json.loads(f.read().decode())
@@ -149,7 +136,7 @@ def aged_data_test():
     translator.compile(age_header, data_body)
     age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
     age_header['data_spec'] = 'x-i-a'
-    dispatcher.receive_data(age_header, age_data_body)
+    receiver.receive_data(age_header, age_data_body)
 
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -173,7 +160,7 @@ def aged_data_test():
     translator.compile(age_header, data_body)
     age_data_body = [translator.get_translated_line(item, age=101) for item in data_body]
     age_header['data_spec'] = 'x-i-a'
-    dispatcher.receive_data(age_header, age_data_body)
+    receiver.receive_data(age_header, age_data_body)
 
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
@@ -221,7 +208,7 @@ def load_data_test():
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
         if int(header.get('age', 0)) != 1:
             counter += len(record_data)
-        dispatcher.receive_data(header, record_data)
+        receiver.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
     assert counter == 999
 
@@ -233,36 +220,6 @@ def load_data_test():
         doc_data = depositor.get_data_from_header(doc_dict)
         counter += doc_dict['line_nb']
     assert counter == 999
-
-    # Load data 2
-    load_config2['load_type'] = 'header'
-    file_loader.load(load_config2)
-    load_config2['load_type'] = 'initial'
-    file_loader.load(load_config2)
-
-    for x in range(5):
-        for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
-            header, data, msg_id = subscriber.unpack_message(msg)
-            file_loader.load(load_config=json.loads(header['load_config']))
-            subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
-
-    # Save new loaded data
-    for msg in subscriber.pull(os.path.join('.', 'output', 'loader'), 'test_02'):
-        header, data, msg_id = subscriber.unpack_message(msg)
-        dispatcher.receive_data(header, data)
-        subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_02', msg_id)
-
-    depositor.set_current_topic_table('test_02', 'aged_02')
-
-    counter = 0
-    for doc_ref in depositor.get_stream_by_sort_key(status_list=['initial']):
-        doc_dict = depositor.get_header_from_ref(doc_ref)
-        counter += doc_dict['line_nb']
-    assert counter == 999
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
-        header, data, msg_id = subscriber.unpack_message(msg)
-        subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
 
     # Load skip check number >
     load_config3 = load_config1.copy()
