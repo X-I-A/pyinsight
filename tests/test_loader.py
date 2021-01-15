@@ -33,11 +33,11 @@ def loader():
 def test_exceptions(loader):
     subscriber = BasicSubscriber()
     error_config_1 = load_config.copy()
-    error_config_1['data_store'] = 'err'
+    error_config_1.pop('publisher_id')
     loader.load(error_config_1)
     for msg in subscriber.pull(loader.channel, loader.topic_backlog):
         header, data, msg_id = subscriber.unpack_message(msg)
-        assert header['table_id'] == 'INS-000005'
+        assert header['table_id'] == 'INS-000011'
         subscriber.ack(loader.channel, loader.topic_backlog, msg_id)
 
     error_config_2 = load_config.copy()
