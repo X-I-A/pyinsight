@@ -56,8 +56,6 @@ class Receiver(Insight):
             This function is decorated by @backlog, which means all Exceptions will be sent to internal message topic:
                 backlog
         """
-        src_topic_id = header['topic_id']
-        src_table_id = header['table_id']
         self.log_context['context'] = '-'.join([header['topic_id'], header['table_id']])
         # Step 1: Data Preparation
         if isinstance(data, list):

@@ -5,7 +5,7 @@ import gzip
 import asyncio
 import logging
 import pytest
-from xialib import IOListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
+from xialib import IoListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
 from pyinsight.packager import Packager
 from pyinsight.merger import Merger
 from pyinsight.dispatcher import Dispatcher
@@ -19,7 +19,7 @@ from pyinsight.receiver import Receiver
 # Basic Unit definition
 depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
 depositor.size_limit = 2 ** 12
-archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
+archiver = IoListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
 subscriber = BasicSubscriber()
 storer = BasicStorer()
 translator = BasicTranslator()
@@ -42,7 +42,7 @@ load_config1 = {
     'src_table_id': 'aged_data',
     'destination': os.path.join('.', 'output', 'loader'),
     'tar_topic_id': 'test_01',
-    'tar_table_id': 'aged_01',
+    'tar_config_id': 'aged_01',
     'fields': ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers'],
     'filters': [[['gender', '=', 'Male'], ['height', '>=', 175]],
               [['gender', '=', 'Female'], ['weight', '<=', 100]]],
@@ -62,6 +62,7 @@ def purger():
     # Insight Level Settings
     messager = BasicPublisher()
     Insight.set_internal_channel(messager=messager,
+                                 id='x-i-a-test',
                                  topic_backlog='backlog',
                                  topic_cleaner='cleaner',
                                  topic_cockpit='cockpit',
@@ -208,6 +209,8 @@ def load_data_test():
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
         if int(header.get('age', 0)) != 1:
             counter += len(record_data)
+        if 'config_id' in header:
+            header['table_id'] = header.pop('config_id')
         receiver.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
     assert counter == 999

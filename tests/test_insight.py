@@ -1,14 +1,14 @@
 import os
 import json
 import pytest
-from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer, IOListArchiver
+from xialib import BasicPublisher, BasicTranslator, FileDepositor, BasicStorer, IoListArchiver
 from pyinsight.insight import Insight
 
 @pytest.fixture(scope='module')
 def insight():
     storer = BasicStorer()
     publishers = {'test-001': BasicPublisher()}
-    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
+    archiver = IoListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     insight = Insight(storers=[storer], publishers=publishers, archiver=archiver, depositor=depositor)
     yield insight
@@ -30,24 +30,6 @@ def test_messager_send(insight):
     insight.trigger_package('test', 'aged_data')
     load_config = {'src_topic_id': 'test', 'src_table_id': 'aged_data'}
     insight.trigger_load(load_config)
-
-def test_filter_operations(insight):
-    filters1 = [[['gender', '=', 'Male'], ['height', '>=', 175]],
-              [['gender', '=', 'Female'], ['weight', '<=', 100]]]
-    filters2 = [[['gender', '=', 'Male'], ['height', '>', 175]],
-              [['gender', '!=', 'Male'], ['weight', '<', 100]]]
-    with open(os.path.join('.', 'input', 'person_complex', '000002.json'), 'rb') as f:
-        data_body = json.loads(f.read().decode())
-    with open(os.path.join('.', 'input', 'person_complex', '000003.json'), 'rb') as f:
-        data_body.extend(json.loads(f.read().decode()))
-    fields = ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers']
-    result1 = insight.filter_table(data_body, fields, filters1)
-    result2 = insight.filter_table(data_body, None, filters1)
-    assert set([r['id'] for r in result1]) == set([r['id'] for r in result2])
-    result3 = insight.filter_table(data_body, None, filters2)
-    result4 = insight.filter_table(data_body, fields, None)
-    result5 = insight.filter_table(data_body, None, None)
-    all_need_fields = insight.get_minimum_fields(fields, filters1)
 
 def test_exceptions(insight):
     with pytest.raises(TypeError):
