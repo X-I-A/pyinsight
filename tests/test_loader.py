@@ -1,7 +1,7 @@
 import os
 import json
 import pytest
-from xialib import IOListArchiver, FileDepositor, BasicPublisher, BasicStorer, BasicSubscriber
+from xialib import IoListArchiver, FileDepositor, BasicPublisher, BasicStorer, BasicSubscriber
 from pyinsight.packager import Packager
 from pyinsight.dispatcher import Dispatcher
 from pyinsight.loader import Loader
@@ -22,7 +22,7 @@ load_config = {
 @pytest.fixture(scope='module')
 def loader():
     storer = BasicStorer()
-    archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
+    archiver = IoListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     publisher = BasicPublisher()
     publishers = {'client-001': publisher,

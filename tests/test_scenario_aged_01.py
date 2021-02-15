@@ -5,7 +5,7 @@ import gzip
 import asyncio
 import logging
 import pytest
-from xialib import IOListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
+from xialib import IoListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
 from pyinsight.packager import Packager
 from pyinsight.merger import Merger
 from pyinsight.dispatcher import Dispatcher
@@ -19,7 +19,7 @@ from pyinsight.receiver import Receiver
 # Basic Unit definition
 depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
 depositor.size_limit = 2 ** 12
-archiver = IOListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
+archiver = IoListArchiver(archive_path=os.path.join('.', 'output', 'archiver'), fs=BasicStorer())
 subscriber = BasicSubscriber()
 storer = BasicStorer()
 translator = BasicTranslator()
