@@ -43,7 +43,6 @@ class Dispatcher(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-
         if not all([item[2] in self.publisher for item in subscription_list]):
             self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
             raise TypeError("INS-000006")
