@@ -109,9 +109,13 @@ class Dispatcher(Insight):
             with zipfile.ZipFile(route_io) as route_zip:
                 try:
                     with route_zip.open(l2_path) as route_fp:
-                        return json.load(route_fp)
+                        route_list = []
+                        for key, routes in json.load(route_fp).items():
+                            route_list.extend(routes)
+                            return route_list
                 except Exception as e:  # pragma: no cover
                     return []  # pragma: no cover
+        return []  # pragma: no cover
 
     def get_config_by_publisher(self, src_topic_id, src_table_id):
         table_routes = self.get_routes(src_topic_id, src_table_id)

@@ -47,24 +47,6 @@ def dispatcher():
     dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
     yield dispatcher
 
-def generate_routes():
-    fields = ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers']
-    filters1 = [[['gender', '=', 'Male'], ['height', '>=', 175]],
-                [['gender', '=', 'Female'], ['weight', '<=', 100]]]
-    filters2 = [[['gender', '=', 'Male'], ['height', '>', 175]],
-                [['gender', '!=', 'Male'], ['weight', '<', 100]]]
-    route1 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t1", "tar_table_id": "aged"}
-    route2 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t2", "tar_table_id": "aged",
-              "fields": fields}
-    route3 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t3", "tar_table_id": "aged",
-              "filters": filters1}
-    route4 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t4", "tar_table_id": "aged",
-              "fields": fields, "filters": filters1}
-    with open("aged_data", "w") as fp:
-        json.dump([route1, route2], fp)
-    with open("normal_data", "w") as fp:
-        json.dump([route3, route4], fp)
-
 def test_send_age_header(dispatcher):
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
         data_header = json.loads(f.read().decode())

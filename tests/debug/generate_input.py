@@ -41,8 +41,28 @@ def create_saved_header():
         data_header = json.loads(f.read().decode())
         print(base64.b64encode(gzip.compress(json.dumps(data_header, ensure_ascii=False).encode())).decode())
 
+def generate_routes():
+    fields = ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers']
+    filters1 = [[['gender', '=', 'Male'], ['height', '>=', 175]],
+                [['gender', '=', 'Female'], ['weight', '<=', 100]]]
+    filters2 = [[['gender', '=', 'Male'], ['height', '>', 175]],
+                [['gender', '!=', 'Male'], ['weight', '<', 100]]]
+    route1 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t1", "tar_table_id": "aged"}
+    route2 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t2", "tar_table_id": "aged",
+              "fields": fields}
+    route3 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t3", "tar_table_id": "aged",
+              "filters": filters1}
+    route4 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t4", "tar_table_id": "aged",
+              "fields": fields, "filters": filters1}
+    with open("aged_data", "w") as fp:
+        json.dump({"t1": [route1], "t2": [route2]}, fp)
+    with open("normal_data", "w") as fp:
+        json.dump({"t3": [route3], "t4": [route4]}, fp)
+
 if __name__=='__main__':
-    create_saved_header()
+    """"""
+    generate_routes()
+    # create_saved_header()
     # create_saved_doc()
     # generate_person_complex()
     # generate_person_simple()
