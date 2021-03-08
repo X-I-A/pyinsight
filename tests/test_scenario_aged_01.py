@@ -8,7 +8,6 @@ import pytest
 from xialib import IoListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
 from pyinsight.packager import Packager
 from pyinsight.merger import Merger
-from pyinsight.dispatcher import Dispatcher
 from pyinsight.loader import Loader
 from pyinsight.cleaner import Cleaner
 from pyinsight.insight import Insight

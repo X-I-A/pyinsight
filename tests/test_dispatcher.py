@@ -30,10 +30,40 @@ def dispatcher():
                          ['test', 'aged_data', 'client-002', dest02, 't2', 'aged', fields, None, None],
                          ['test', 'normal_data', 'client-003', dest03, 't3', 'aged', None, filters1, None],
                          ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1, None]]
-    dispatcher = Dispatcher(publisher=publisher,
-                            subscription_list=subscription_list)
+
+    tar_config = [
+        {"publisher_id": "client-001", "destination": dest01, "tar_topic_id": "t1"},
+        {"publisher_id": "client-002", "destination": dest02, "tar_topic_id": "t2"},
+        {"publisher_id": "client-003", "destination": dest03, "tar_topic_id": "t3"},
+        {"publisher_id": "client-004", "destination": dest04, "tar_topic_id": "t4"},
+    ]
+    topic_routes = [
+        {"source": "test", "target": "t1"},
+        {"source": "test", "target": "t3"}
+    ]
+    dispatcher = Dispatcher(publisher=publisher, route_file=os.path.join(".", "input", "test.zip"))
+    dispatcher.set_tar_config(tar_config)
+    dispatcher.set_topic_routes(topic_routes)
     dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
     yield dispatcher
+
+def generate_routes():
+    fields = ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers']
+    filters1 = [[['gender', '=', 'Male'], ['height', '>=', 175]],
+                [['gender', '=', 'Female'], ['weight', '<=', 100]]]
+    filters2 = [[['gender', '=', 'Male'], ['height', '>', 175]],
+                [['gender', '!=', 'Male'], ['weight', '<', 100]]]
+    route1 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t1", "tar_table_id": "aged"}
+    route2 = {"src_topic_id": "test", "src_table_id": "aged_data", "tar_topic_id": "t2", "tar_table_id": "aged",
+              "fields": fields}
+    route3 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t3", "tar_table_id": "aged",
+              "filters": filters1}
+    route4 = {"src_topic_id": "test", "src_table_id": "normal_data", "tar_topic_id": "t4", "tar_table_id": "aged",
+              "fields": fields, "filters": filters1}
+    with open("aged_data", "w") as fp:
+        json.dump([route1, route2], fp)
+    with open("normal_data", "w") as fp:
+        json.dump([route3, route4], fp)
 
 def test_send_age_header(dispatcher):
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
@@ -133,18 +163,10 @@ def test_send_normal_document(dispatcher):
     normal_header['data_spec'] = 'x-i-a'
     dispatcher.dispatch_data(normal_header, normal_data_body)
 
-def test_send_with_single_component(dispatcher):
-    dispatcher_1 = Dispatcher(publisher=dispatcher.publisher, subscription_list=dispatcher.subscription_list)
-
-    with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
-        data_header = json.loads(f.read().decode())
-        header = {'topic_id': 'test', 'table_id': 'aged_data', 'aged': 'True',
-                  'data_encode': 'flat', 'data_format': 'record', 'data_spec': 'x-i-a', 'data_store': 'body',
-                  'age': '1', 'start_seq': '20201113222500000000', 'meta-data': {}}
-    dispatcher_1.dispatch_data(header, data_header)
+def test_send_init_with_storer():
+    disp1 = Dispatcher(publisher={"dummy": BasicPublisher()}, route_file=".", storer=BasicStorer())
+    disp2 = Dispatcher(publisher={"dummy": BasicPublisher()}, route_file=".", storer={"default": BasicStorer()})
 
 def test_exceptions(dispatcher):
-    ko_publisher = dispatcher.publisher.copy()
-    ko_publisher.pop('client-003')
-    with pytest.raises(TypeError):
-        ko_disp = Dispatcher(publisher=ko_publisher, subscription_list=dispatcher.subscription_list)
+    with pytest.raises(ValueError):
+        ko_disp = Dispatcher(publisher=BasicPublisher(), route_file=".")
