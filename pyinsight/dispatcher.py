@@ -3,36 +3,51 @@ import gzip
 import base64
 import logging
 import threading
+import datetime
+import zipfile
+from functools import lru_cache, wraps
 from typing import List, Dict, Tuple, Union
-from xialib import backlog, Depositor, Publisher, Storer, BasicFlower, SegmentFlower
+from xialib import backlog, Publisher, BasicFlower, SegmentFlower, BasicStorer
 from pyinsight.insight import Insight
 
 __all__ = ['Dispatcher']
 
 
+def timed_lru_cache(maxsize: int = 1024):
+    def wrapper_cache(func):
+        func = lru_cache(maxsize=maxsize)(func)
+        func.lifetime = datetime.timedelta(seconds=600)
+        func.expiration = datetime.datetime.utcnow() + func.lifetime
+        @wraps(func)
+        def wrapped_func(*args, **kwargs):
+            if datetime.datetime.utcnow() >= func.expiration:
+                # Test Covered by PubsubGcrPublisher (xialib-pubsub)
+                func.cache_clear()  # pragma: no cover
+                func.expiration = datetime.datetime.utcnow() + func.lifetime  # pragma: no cover
+            return func(*args, **kwargs)
+        return wrapped_func
+    return wrapper_cache
+
 class Dispatcher(Insight):
     """Receive pushed data, save to depositor and publish to different destinations
 
     Attributes:
-        storers (:obj:`list` of :obj:`Storer`): Read the data which is not in a message body
-        storer_dict (:obj:`list`): data_store Type and its related Storer
-        depoistor (:obj:`Depositor`): Depositor attach to this receiver
-        publishers (:obj:`dict` of :obj:`Publisher`): publisher id, publisher object
+        publisher (:obj:`dict` of :obj:`Publisher`): publisher lists
         subscription_list (:obj:`list` of :obj:`list`): Subscription Lists (
             source topic id,
-            source table id,
-            publisher id,
-            target destination,
-            target topic id,
-            configuration id,
-            field list,
-            filters list,
-            segment_config
+                publisher key,
+                target destination,
+                target topic id,
+                    source table id,
+                        target table id,
+                        field list,
+                        filters list,
+                        segment_config
 
     Notes:
         filter list must in the NDF form of list(list(list)))
     """
-    def __init__(self, subscription_list: list, publisher: dict, **kwargs):
+    def __init__(self, route_file: str, publisher: dict, **kwargs):
         super().__init__(publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Dispatcher")
         self.logger.level = self.log_level
@@ -43,20 +58,78 @@ class Dispatcher(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
+        # Unique storer support
+        if "storer" not in kwargs:
+            self.storer = BasicStorer()
+        elif isinstance(self.storer, dict):
+            self.storer = [v for k, v in self.publisher.items()][0]
 
-        if not all([item[2] in self.publisher for item in subscription_list]):
-            self.logger.error("subscription list contains unknown publisher", extra=self.log_context)
-            raise TypeError("INS-000006")
-        else:
-            self.subscription_list = subscription_list
+        # Publisher Must be Dict
+        if not isinstance(self.publisher, dict):
+            self.logger.error("Publisher of Dispatch should be arranged as dictionary", extra=self.log_context)
+            raise ValueError("Publisher of Dispatch should be arranged as dictionary")
 
-    def _iter_config_by_src_per_publisher(self, src_topic_id: str, src_table_id: str):
-        config_list = [cfg for cfg in self.subscription_list if cfg[0] == src_topic_id and cfg[1] == src_table_id]
-        publisher_list = set([cfg[2] for cfg in config_list])
+        self.tar_config, self.default_routes = {}, {}
+        self.route_file = route_file
+
+    def set_tar_config(self, tar_config: List[dict]):
+        """Target Configuration
+
+        Attributes:
+            tar_config (:obj:`list` of :obj:`dict`): Destination Configuration
+                publisher_id: str
+                destination: str
+                tar_topic_id: str
+
+        """
+        self.tar_config = {}
+        for config in tar_config:
+            self.tar_config[config["tar_topic_id"]] = [config["publisher_id"], config["destination"]]
+
+    def set_topic_routes(self, routes: List[List[str]]):
+        """Topic Level Routes
+
+        Attributes:
+            routes (:obj:`list` of :obj:`list`): topic_level routes
+        """
+        self.default_routes = {}
+        for route in routes:
+            if route["source"] in self.default_routes:
+                self.default_routes[route["source"]].append(route["target"])
+            else:
+                self.default_routes[route["source"]] = [route["target"]]
+
+    @timed_lru_cache()
+    def get_routes(self, src_topic_id, src_table_id) -> list:
+        """Get Route Table for specific topic and table
+
+        """
+        l2_path = src_topic_id + "/" + src_table_id
+        for route_io in self.storer.get_io_stream(self.route_file):
+            with zipfile.ZipFile(route_io) as route_zip:
+                try:
+                    with route_zip.open(l2_path) as route_fp:
+                        return json.load(route_fp)
+                except Exception as e:  # pragma: no cover
+                    return []  # pragma: no cover
+
+    def get_config_by_publisher(self, src_topic_id, src_table_id):
+        table_routes = self.get_routes(src_topic_id, src_table_id)
+        for default_tar_topic in self.default_routes.get(src_topic_id, []):
+            if default_tar_topic not in [route["tar_topic_id"] for route in table_routes]:
+                table_routes.append({"src_topic_id": src_topic_id, "src_table_id": src_table_id,
+                                     "tar_topic_id": default_tar_topic, "tar_table_id": src_table_id})
+        for route in table_routes:
+            publisher_id, destination = self.tar_config.get(route["tar_topic_id"])
+            route.update({"publisher_id": publisher_id, "destination": destination})
+        publisher_list = set([route["publisher_id"] for route in table_routes])
         for publisher_id in publisher_list:
-            dest_list = [cfg[3:9] for cfg in config_list if cfg[2] == publisher_id]
-            yield {publisher_id: dest_list}
-
+            dests = list()
+            for route in table_routes:
+                if route["publisher_id"] == publisher_id:
+                    dests.append([route["destination"], route["tar_topic_id"], route["tar_table_id"],
+                                  route.get("fields", None), route.get("filters", None), route.get("segment", None)])
+            yield {publisher_id: dests}
 
     def _dispatch_data(self, header: dict, full_data: List[dict], publisher: Publisher,
                       dest_list: List[Tuple[str, str, str, list, list]]):
@@ -118,7 +191,7 @@ class Dispatcher(Insight):
             tar_full_data = json.loads(data)
         # Step 2: Multi-thread publish
         handlers = list()
-        for config in self._iter_config_by_src_per_publisher(src_topic_id, src_table_id):
+        for config in self.get_config_by_publisher(src_topic_id, src_table_id):
             for publisher_id, dest_list in config.items():
                 publisher = self.publisher.get(publisher_id)
                 cur_handler = threading.Thread(target=self._dispatch_data,

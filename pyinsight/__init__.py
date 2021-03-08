@@ -26,4 +26,4 @@ __all__ = insight.__all__ \
     + packager.__all__ \
     + receiver.__all__
 
-__version__ = "0.2.22"
+__version__ = "0.2.23"
