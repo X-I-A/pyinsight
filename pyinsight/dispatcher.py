@@ -148,10 +148,8 @@ class Dispatcher(Insight):
             tar_header = header.copy()
             tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
             tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
-            tar_header['insight_id'] = self.insight_id
             tar_header['topic_id'] = destination[1]
-            tar_header['config_id'] = destination[2]
-            tar_header.pop('table_id', None)
+            tar_header['table_id'] = destination[2]
             basic_flower = BasicFlower(destination[3], destination[4])
             segment_flower = SegmentFlower(destination[5])
             tar_data = basic_flower.proceed(tar_header, full_data)[1]
