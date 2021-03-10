@@ -139,7 +139,9 @@ class Dispatcher(Insight):
             for route in table_routes:
                 if route["publisher_id"] == publisher_id:
                     dests.append([route["destination"], route["tar_topic_id"], route["tar_table_id"],
-                                  route.get("fields", None), route.get("filters", None), route.get("segment", None)])
+                                  route["fields"] if route.get("fields", None) else None,
+                                  route["filters"] if route.get("filters", None) else None,
+                                  route["segment"] if route.get("segment", None) else None])
             yield {publisher_id: dests}
 
     def _dispatch_data(self, header: dict, full_data: List[dict], publisher: Publisher,
