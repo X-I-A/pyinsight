@@ -70,6 +70,7 @@ class Dispatcher(Insight):
             raise ValueError("Publisher of Dispatch should be arranged as dictionary")
 
         self.tar_config, self.default_routes = {}, {}
+
         self.route_file = route_file
 
     def set_tar_config(self, tar_config: List[dict]):
@@ -84,7 +85,7 @@ class Dispatcher(Insight):
         """
         self.tar_config = {}
         for config in tar_config:
-            self.tar_config[config["tar_topic_id"]] = [config["publisher_id"], config["destination"]]
+            self.tar_config[config["topic"]] = [config["publisher_id"], config["destination"]]
 
     def set_topic_routes(self, routes: List[List[str]]):
         """Topic Level Routes
@@ -112,9 +113,15 @@ class Dispatcher(Insight):
                         route_list = []
                         for key, routes in json.load(route_fp).items():
                             route_list.extend(routes)
+                            self.logger.info("Route {}-{} Loaded".format(src_topic_id, src_table_id),
+                                             extra=self.log_context)
                             return route_list
                 except Exception as e:  # pragma: no cover
+                    self.logger.warning("Route {}-{} Load Error or Not found".format(src_topic_id, src_table_id),
+                                        extra=self.log_context)
                     return []  # pragma: no cover
+        self.logger.warning("Route {}-{} Not found".format(src_topic_id, src_table_id),
+                            extra=self.log_context)
         return []  # pragma: no cover
 
     def get_config_by_publisher(self, src_topic_id, src_table_id):
