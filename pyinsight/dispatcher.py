@@ -121,7 +121,7 @@ class Dispatcher(Insight):
                                         extra=self.log_context)
                     return []  # pragma: no cover
         self.logger.warning("Route {}-{} Not found".format(src_topic_id, src_table_id),
-                            extra=self.log_context)
+                            extra=self.log_context)  # pragma: no cover
         return []  # pragma: no cover
 
     def get_config_by_publisher(self, src_topic_id, src_table_id):
