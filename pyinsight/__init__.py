@@ -27,4 +27,4 @@ __all__ = \
     + packager.__all__ \
     + receiver.__all__
 
-__version__ = "0.2.27"
+__version__ = "0.2.28"
