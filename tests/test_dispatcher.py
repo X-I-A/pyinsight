@@ -32,10 +32,10 @@ def dispatcher():
                          ['test', 'normal_data', 'client-004', dest04, 't4', 'aged', fields, filters1, None]]
 
     tar_config = [
-        {"publisher_id": "client-001", "destination": dest01, "tar_topic_id": "t1"},
-        {"publisher_id": "client-002", "destination": dest02, "tar_topic_id": "t2"},
-        {"publisher_id": "client-003", "destination": dest03, "tar_topic_id": "t3"},
-        {"publisher_id": "client-004", "destination": dest04, "tar_topic_id": "t4"},
+        {"publisher_id": "client-001", "destination": dest01, "topic": "t1"},
+        {"publisher_id": "client-002", "destination": dest02, "topic": "t2"},
+        {"publisher_id": "client-003", "destination": dest03, "topic": "t3"},
+        {"publisher_id": "client-004", "destination": dest04, "topic": "t4"},
     ]
     topic_routes = [
         {"source": "test", "target": "t1"},
