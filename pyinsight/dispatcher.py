@@ -168,8 +168,6 @@ class Dispatcher(Insight):
             publisher.publish(destination[0], destination[1], tar_header,
                               gzip.compress(json.dumps(tar_data, ensure_ascii=False).encode()))
 
-
-    @backlog
     def dispatch_data(self, header: dict, data: Union[List[dict], str, bytes], **kwargs) -> bool:
         """ Public function
 

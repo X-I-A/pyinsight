@@ -108,6 +108,7 @@ def normal_data_test():
     normal_header['data_spec'] = 'x-i-a'
     receiver.receive_data(normal_header, normal_data_body)
 
+    merger.merge_all_data("scenario_01", "normal_data")
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
@@ -137,17 +138,8 @@ def aged_data_test():
     age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
     age_header['data_spec'] = 'x-i-a'
     receiver.receive_data(age_header, age_data_body)
-
-    # Merge message streaming
-    asyncio.set_event_loop(asyncio.new_event_loop())
-    loop = asyncio.get_event_loop()
-    merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
-    loop.run_until_complete(asyncio.wait([merge_task]))
-    loop.close()
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_cleaner):
-        header, data, msg_id = subscriber.unpack_message(msg)
-        subscriber.ack(Insight.channel, Insight.topic_cleaner, msg_id)
+    merger.merge_all_data("scenario_01", "aged_data")
+    cleaner.clean_data("scenario_01", "aged_data", "20201113222500000000")
 
     packager.package_data('scenario_01', 'aged_data')
 
@@ -161,6 +153,7 @@ def aged_data_test():
     age_data_body = [translator.get_translated_line(item, age=101) for item in data_body]
     age_header['data_spec'] = 'x-i-a'
     receiver.receive_data(age_header, age_data_body)
+    merger.merge_all_data("scenario_01", "aged_data")
 
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())

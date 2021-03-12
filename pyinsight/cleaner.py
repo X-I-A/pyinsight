@@ -25,7 +25,6 @@ class Cleaner(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-    @backlog
     def clean_data(self, topic_id: str, table_id: str, start_seq: str, **kwargs):
         """ Public function
 

@@ -38,8 +38,6 @@ class Receiver(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-
-    @backlog
     def receive_data(self, header: dict, data: Union[List[dict], str, bytes], **kwargs) -> bool:
         """ Public function
 
@@ -70,17 +68,4 @@ class Receiver(Insight):
             tar_full_data = json.loads(data)
 
         saved_headers = self.depositor.add_document(header, tar_full_data)
-        # Step 4.2: Check if the first level merge process should be triggered
-        for saved_header in saved_headers:
-            if saved_header.get('merge_level', 0) > 0 and saved_header.get('merge_status', '') != 'header':
-                self.logger.info("Trigger Merging", extra=self.log_context)
-                self.trigger_merge(saved_header['topic_id'], saved_header['table_id'],
-                                   saved_header['merge_key'], 1, saved_header['merge_level'])
-            # Step 4.3: Header related operations
-            if saved_header['merge_status'] == 'header':
-                self.logger.info("Sending table creation event", extra=self.log_context)
-                saved_header['event_type'] = 'target_table_update'
-                self.trigger_cockpit(saved_header, tar_full_data)
-                self.logger.info("Trigger Cleaning", extra=self.log_context)
-                self.trigger_clean(saved_header['topic_id'], saved_header['table_id'], saved_header['start_seq'])
-        return True
+        return True if saved_headers else False
