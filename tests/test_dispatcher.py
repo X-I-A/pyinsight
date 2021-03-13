@@ -44,7 +44,6 @@ def dispatcher():
     dispatcher = Dispatcher(publisher=publisher, route_file=os.path.join(".", "input", "test.zip"))
     dispatcher.set_tar_config(tar_config)
     dispatcher.set_topic_routes(topic_routes)
-    dispatcher.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
     yield dispatcher
 
 def test_send_age_header(dispatcher):

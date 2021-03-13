@@ -14,7 +14,6 @@ from pyinsight.receiver import Receiver
 def receiver():
     depositor = FileDepositor(deposit_path=os.path.join('.', 'output', 'depositor'))
     receiver = Receiver(depositor=depositor)
-    receiver.set_internal_channel(channel=os.path.join('.', 'output', 'messager'))
     yield receiver
 
 def test_send_age_flat_document(receiver):

@@ -28,6 +28,6 @@ def test_simpler_merger(merger):
     age_data_body = [translator.get_translated_line(item, age=2) for item in data_body]
     merger.depositor.add_document(age_header, age_data_body)
 
-    assert not merger.merge_data('test', 'aged_data', '20201113222500000100', 2, 7)
-    assert merger.merge_data('test', 'aged_data', '20201113222500000100', 1, 7)
+    assert not merger.merge_data('test', 'aged_data', '20201113222500000100', 2)
+    assert merger.merge_data('test', 'aged_data', '20201113222500000100', 1)
 
