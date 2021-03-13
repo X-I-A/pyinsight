@@ -32,7 +32,6 @@ class Packager(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-    @backlog
     def package_data(self, topic_id: str, table_id: str, **kwargs) -> bool:
         """ Public function
 

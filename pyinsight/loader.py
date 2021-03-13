@@ -2,13 +2,52 @@ import json
 import logging
 import base64
 import gzip
-import hashlib
+import zipfile
+import datetime
+from functools import lru_cache, wraps
 from typing import Union, List, Dict, Any
-from xialib import backlog, BasicFlower, SegmentFlower
+from xialib import backlog, BasicFlower, SegmentFlower, BasicStorer, IOStorer
 from pyinsight.insight import Insight
 
-
 __all__ = ['Loader']
+
+
+def timed_lru_cache(maxsize: int = 1024):
+    def wrapper_cache(func):
+        func = lru_cache(maxsize=maxsize)(func)
+        func.lifetime = datetime.timedelta(seconds=600)
+        func.expiration = datetime.datetime.utcnow() + func.lifetime
+        @wraps(func)
+        def wrapped_func(*args, **kwargs):
+            if datetime.datetime.utcnow() >= func.expiration:
+                # Test Covered by PubsubGcrPublisher (xialib-pubsub)
+                func.cache_clear()  # pragma: no cover
+                func.expiration = datetime.datetime.utcnow() + func.lifetime  # pragma: no cover
+            return func(*args, **kwargs)
+        return wrapped_func
+    return wrapper_cache
+
+
+@timed_lru_cache()
+def get_routes(route_file: str, storer: IOStorer, src_topic_id: str, src_table_id) -> list:
+    """Get Route Table for specific topic and table
+
+    """
+    l2_path = src_topic_id + "/" + src_table_id
+    for route_io in storer.get_io_stream(route_file):
+        with zipfile.ZipFile(route_io) as route_zip:
+            try:
+                with route_zip.open(l2_path) as route_fp:
+                    route_list = []
+                    for key, routes in json.load(route_fp).items():
+                        route_list.extend(routes)
+                        logging.info("Route {}-{} Loaded".format(src_topic_id, src_table_id))
+                        return route_list
+            except Exception as e:  # pragma: no cover
+                logging.warning("Route {}-{} Load Error or Not found".format(src_topic_id, src_table_id))
+                return []  # pragma: no cover
+    logging.warning("Route {}-{} Not found".format(src_topic_id, src_table_id))  # pragma: no cover
+    return []  # pragma: no cover
 
 class Loader(Insight):
     """Load Full table data to a destination
@@ -16,13 +55,13 @@ class Loader(Insight):
     Design to take only useful message to Agent Module
 
     Attributes:
-        storers (:obj:`list` of :obj:`Storer`): Read the data which is not in a message body
-        storer_dict (:obj:`list`): data_store Type and its related Storer
+        storer (:obj:`Storer`): Read the data of route file
+        route_file (:obj:`str`): Location of route file
         depoistor (:obj:`Depositor`): Data is retrieve from depositor
         archiver (:obj:`Archiver`): Data is saved to archiver
         publishers (:obj:`dict` of :obj:`Publisher`): publisher id and its related publisher object
     """
-    def __init__(self, depositor, archiver, publisher: dict, **kwargs):
+    def __init__(self, route_file: str, depositor, archiver, publisher: dict, **kwargs):
         super().__init__(archiver=archiver, depositor=depositor, publisher=publisher, **kwargs)
         self.logger = logging.getLogger("Insight.Loader")
         self.logger.level = self.log_level
@@ -34,142 +73,17 @@ class Loader(Insight):
             self.logger.addHandler(console_handler)
         self.active_publisher = None
 
-    # Head Load: Simple Sent
-    def _header_load(self, header_dict, destination, tar_topic_id, tar_config_id, fields) -> bool:
-        tar_header = header_dict.copy()
-        tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
-        tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
-        tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
-        tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
-        tar_header['insight_id'] = self.insight_id
-        tar_header['topic_id'] = tar_topic_id
-        tar_header['config_id'] = tar_config_id
-        tar_header.pop('table_id', None)
-        tar_header['data_encode'] = 'gzip'
-        tar_header['data_store'] = 'body'
-        tar_header.pop('data', None)
-        self.logger.info("Header to be loaded", extra=self.log_context)
-        self.active_publisher.publish(destination, tar_topic_id, tar_header,
-                                      gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
-        self.logger.info("Sending table creation event", extra=self.log_context)
-        tar_header['event_type'] = 'target_table_update'
-        self.trigger_cockpit(tar_header, tar_body_data)
-        return True
+        # Unique storer support
+        if "storer" not in kwargs:
+            self.storer = BasicStorer()
+        elif isinstance(self.storer, dict):
+            self.storer = [v for k, v in self.publisher.items()][0]
+        self.route_file = route_file
 
-    # Normal Load : Send One by One without duplications
-    def _normal_load(self, header_dict, destination, tar_topic_id, tar_config_id, start_key, end_key, fields, filters):
-        load_history = dict()
-        for doc_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial'], start_key):
-            doc_dict = self.depositor.get_header_from_ref(doc_ref)
-            # Case 1 : End of the Scope
-            if doc_dict['sort_key'] > end_key:
-                return True  # pragma: no cover
-            # Case 2 : Obsolete Document
-            if doc_dict['merge_key'] < header_dict['start_seq']:
-                continue  # pragma: no cover
-            # Case 3: Normal -> Dispatch Document
-            tar_header = doc_dict.copy()
-            tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
-            tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
-            tar_body_data = [line for line in tar_body_data
-                if (line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)) not in load_history]
-            load_history.update({(line.get('_AGE', None), line.get('_SEQ', None), line.get('_NO', None)): None
-                                 for line in tar_body_data})
-            tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
-            tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
-            tar_header['insight_id'] = self.insight_id
-            tar_header['topic_id'] = tar_topic_id
-            tar_header['config_id'] = tar_config_id
-            tar_header.pop('table_id', None)
-            tar_header['data_encode'] = 'gzip'
-            tar_header['data_store'] = 'body'
-            tar_header.pop('data', None)
-            self.logger.info("Doc {} load {} lines".format(doc_dict['merge_key'], len(tar_body_data)),
-                             extra=self.log_context)
-            self.active_publisher.publish(destination, tar_topic_id, tar_header,
-                                          gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
-        return True
-
-    # Package Load : Asynochronous Parallel Processing
-    def _package_load(self, header_dict, load_config: Dict[str, Any]) -> bool:
-        start_doc_ref, end_doc_ref = None, None
-        destination = load_config['destination']
-        tar_topic_id, tar_config_id = load_config['tar_topic_id'], load_config['tar_config_id']
-        start_key, end_key = load_config['start_key'], load_config['end_key']
-        fields, filters = load_config['fields'], load_config['filters']
-        # Preparation: Ajust the start_key / end_key
-        for start_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], start_key):
-            break
-        if not start_doc_ref:
-            return True
-        start_key = self.depositor.get_header_from_ref(start_doc_ref).get('sort_key')
-        if start_key > end_key:
-            return True  # pragma: no cover
-        elif start_key != end_key:
-            for end_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], end_key, True):
-                break
-            if not end_doc_ref:
-                return True  # pragma: no cover
-            end_key = self.depositor.get_header_from_ref(end_doc_ref).get('sort_key')
-        if start_key > end_key:
-            return True  # pragma: no cover
-        mid_key = str((int(start_key) + int(end_key)) // 2)
-        # Step 1: If start == end, do the job
-        if start_key == end_key:
-            for doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], mid_key):
-                tar_header = self.depositor.get_header_from_ref(doc_ref)
-                # Obsolete Document
-                if tar_header['merge_key'] < header_dict['start_seq']:
-                    return True  # pragma: no cover
-                # Check if the package has the requested data
-                skip_flag = False
-                if 'catalog' in tar_header:
-                    catalog = json.loads(gzip.decompress(base64.b64decode(tar_header['catalog'])))
-                    if not self._check_has_needed_data(filters, catalog):
-                        skip_flag = True
-
-                if skip_flag:
-                    tar_body_data = []
-                else:
-                    needed_fields = list( set(fields)
-                                          | set(self.INSIGHT_FIELDS)
-                                          | set([x[0] for l1 in filters for x in l1 if len(x)>0]))
-                    self.archiver.load_archive(tar_header['merge_key'], needed_fields)
-                    tar_body_data = self.basic_flower.proceed(tar_header, self.archiver.get_data())[1]
-                    tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
-                # Data Setting
-                tar_header['src_topic_id'] = tar_header.get('src_topic_id', tar_header['topic_id'])
-                tar_header['src_table_id'] = tar_header.get('src_table_id', tar_header['table_id'])
-                tar_header['insight_id'] = self.insight_id
-                tar_header['topic_id'] = tar_topic_id
-                tar_header['config_id'] = tar_config_id
-                tar_header.pop('table_id', None)
-                tar_header['data_encode'] = 'gzip'
-                tar_header['data_store'] = 'body'
-                tar_header['data_format'] = 'record'
-                tar_header.pop('data', None)
-                self.logger.info("Doc {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
-                                 extra=self.log_context)
-                self.active_publisher.publish(destination, tar_topic_id, tar_header,
-                                              gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
-                return True
-        # Step 2: Get the right start key
-        for right_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], mid_key, False, 0, False):
-            right_start_key = self.depositor.get_header_from_ref(right_doc_ref).get('sort_key')
-            if right_start_key <= end_key:
-                right_load_config = load_config.copy()
-                right_load_config['start_key'] = right_start_key
-                self.trigger_load(right_load_config)
-            break
-        # Step 3: Get the left start key
-        for left_doc_ref in self.depositor.get_stream_by_sort_key(['packaged'], mid_key, True, 0, True):
-            left_end_key = self.depositor.get_header_from_ref(left_doc_ref).get('sort_key')
-            if left_end_key >= start_key:
-                left_load_config = load_config.copy()
-                left_load_config['end_key'] = left_end_key
-                self.trigger_load(left_load_config)
-            break
-        return True
+        # Publisher Must be Dict
+        if not isinstance(self.publisher, dict):
+            self.logger.error("Publisher of Dispatch should be arranged as dictionary", extra=self.log_context)
+            raise ValueError("Publisher of Dispatch should be arranged as dictionary")
 
     def _get_single_dnf_field(self, ndf_filter: List[List[list]], field_name: str, info_type: str):
         new_dnf_filter = list()
@@ -205,8 +119,69 @@ class Loader(Insight):
                 return False
         return True
 
-    @backlog
-    def load(self, load_config: Union[dict, str], **kwargs):
+    # Head Load:
+    def _header_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
+        tar_header = header_dict.copy()
+        tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
+        tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
+        tar_header['topic_id'] = tar_topic_id
+        tar_header['table_id'] = tar_table_id
+        tar_header['data_encode'] = 'gzip'
+        tar_header['data_store'] = 'body'
+        tar_header.pop('data', None)
+        self.logger.info("Header to be loaded", extra=self.log_context)
+        pub = self.active_publisher.publish(destination, tar_topic_id, tar_header,
+                                            gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
+        return True if pub else False
+
+    # Document Load (merge status = "merged" or "initial"):
+    def _document_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
+        tar_header = header_dict.copy()
+        tar_body_data = self.basic_flower.proceed(tar_header, self.depositor.get_data_from_header(tar_header))[1]
+        tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
+        tar_header['topic_id'] = tar_topic_id
+        tar_header['table_id'] = tar_table_id
+        tar_header['data_encode'] = 'gzip'
+        tar_header['data_store'] = 'body'
+        tar_header.pop('data', None)
+        self.logger.info("Depositor: {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
+                         extra=self.log_context)
+        pub = self.active_publisher.publish(destination, tar_topic_id, tar_header,
+                                            gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
+        return True if pub else False
+
+    # Archive Load (merge status = "packaged")
+    def _archive_load(self, header_dict, destination, tar_topic_id, tar_table_id) -> bool:
+        tar_header = header_dict.copy()
+        # Check if the package has the requested data
+        skip_flag = False
+        if 'catalog' in tar_header:
+            catalog = json.loads(gzip.decompress(base64.b64decode(tar_header['catalog'])))
+            if not self._check_has_needed_data(self.filters, catalog):
+                skip_flag = True
+        if skip_flag:
+            tar_body_data = []
+        else:
+            needed_fields = list(set(self.fields)
+                                 | set(self.INSIGHT_FIELDS)
+                                 | set([x[0] for l1 in self.filters for x in l1 if len(x) > 0]))
+            self.archiver.load_archive(tar_header['merge_key'], needed_fields)
+            tar_body_data = self.basic_flower.proceed(tar_header, self.archiver.get_data())[1]
+            tar_header, tar_body_data = self.segment_flower.proceed(tar_header, tar_body_data)
+        tar_header['topic_id'] = tar_topic_id
+        tar_header['table_id'] = tar_table_id
+        tar_header['data_encode'] = 'gzip'
+        tar_header['data_store'] = 'body'
+        tar_header['data_format'] = 'record'
+        tar_header.pop('data', None)
+        self.logger.info("Archiver: {} load {} lines".format(tar_header['merge_key'], len(tar_body_data)),
+                         extra=self.log_context)
+        pub = self.active_publisher.publish(destination, tar_topic_id, tar_header,
+                                            gzip.compress(json.dumps(tar_body_data, ensure_ascii=False).encode()))
+        return True if pub else False
+
+    def load(self, src_topic_id: str, src_table_id: str, tar_topic_id: str, tar_table_id: str,
+             publisher_id: str, destination: str, start_key: str, end_key: str) -> list:
         """ Load data of a source to a destination
 
         This function will load full / partial data of a source to a destination. Data format will be gzipped records.
@@ -218,86 +193,43 @@ class Loader(Insight):
             src_table_id (:obj:`str`): Source table id
             destination (:obj:`str`): Destination used by publisher
             tar_topic_id (:obj:`str`): Target topic id
-            tar_config_id (:obj:`str`): Target configuration id
-            fields (:obj:`list`): fields to be loaded
-            filters (:obj:`list`): data filter
-            segment (:obj:`dict`): Segment Configuration
-            load_type (:obj:`str`): 'initial', 'header', 'normal', 'packaged'
-            start_key (:obj:`str`): load start merge key
-            end_key (:obj:`str`): load end merge key
+            tar_table_id (:obj:`str`): Target table id
+            start_key (:obj:`str`): load start sort key
+            end_key (:obj:`str`): load end sort key
 
         Notes:
             For the store_path, please including the os path seperator at the end
         """
-        if any([key not in load_config for key in ['publisher_id', "src_topic_id", "src_table_id"]]):
-            self.logger.error("Load Configuration Format Error", extra=self.log_context)
-            raise ValueError("INS-000011")
-        src_topic_id, src_table_id = load_config['src_topic_id'], load_config['src_table_id']
-        destination = load_config['destination']
-        tar_topic_id, tar_config_id = load_config['tar_topic_id'], load_config['tar_config_id']
+        error_list = []
         self.log_context['context'] = src_topic_id + '-' + src_table_id + '|' + \
-                                      tar_topic_id + '-' + tar_config_id
-        fields, filters = load_config.get('fields', None), load_config.get('filters', None)
-        self.basic_flower = BasicFlower(fields, filters)
-        segment_config = load_config.get('segment', None)
-        self.segment_flower = SegmentFlower(segment_config)
+                                      tar_topic_id + '-' + tar_table_id
+        l2_rts = get_routes(self.route_file, self.storer, src_topic_id, src_table_id)
+        routes = [rt for rt in l2_rts if rt["tar_topic_id"] == tar_topic_id and rt["tar_table_id"] == tar_table_id]
+        if not routes:
+            self.logger.warning("No Routes Found", extra=self.log_context)
+            return error_list
+        active_route = routes[0]
+        self.fields, self.filters = active_route.get('fields', None), active_route.get('filters', None)
+        self.basic_flower = BasicFlower(self.fields, self.filters)
+        self.segment_config = active_route.get('segment', None)
+        self.segment_flower = SegmentFlower(self.segment_config)
         # Step 1: Get the correct task taker
-        self.active_publisher = self.publisher.get(load_config['publisher_id'])
+        self.active_publisher = self.publisher.get(publisher_id)
         self.depositor.set_current_topic_table(src_topic_id, src_table_id)
         self.archiver.set_current_topic_table(src_topic_id, src_table_id)
-        load_type = load_config.get('load_type', 'unknown')
-        header_ref = self.depositor.get_table_header()
-        if not header_ref:
-            self.logger.warning("No Table Header Found", extra=self.log_context)
-            return False
-        header_dict = self.depositor.get_header_from_ref(header_ref)
-
-        if load_type == 'initial':
-            # self.logger.info("Header to be loaded", extra=self.log_context)
-            # self._header_load(header_dict, destination, tar_topic_id, tar_config_id, fields)
-            # Get Start key or End key
-            start_doc_ref, end_doc_ref, start_merge_ref = None, None, None
-            for start_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial']):
-                break
-            for start_merge_ref in self.depositor.get_stream_by_sort_key(['merged', 'initial']):
-                break
-            for end_doc_ref in self.depositor.get_stream_by_sort_key(['packaged', 'merged', 'initial'], reverse=True):
-                break
-            if not start_doc_ref or not end_doc_ref:
-                self.logger.info("No data to load", extra=self.log_context)
-                return False
-            start_key = self.depositor.get_header_from_ref(start_doc_ref).get('sort_key')
-            end_key = self.depositor.get_header_from_ref(end_doc_ref).get('sort_key')
-            # Case 1: Only Package Load Process:
-            if not start_merge_ref:
-                package_load_config = load_config.copy()
-                package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': end_key})
-                self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
-                self._package_load(header_dict, package_load_config)
-            # Case 2: Pacakge Load + Normal Load + Package Load
+        # Step 2: Iterator
+        for doc_ref in self.depositor.get_stream_by_sort_key(le_ge_key=start_key):
+            doc_dict = self.depositor.get_header_from_ref(doc_ref)
+            # End of the Scope
+            if doc_dict['sort_key'] > end_key:
+                break  # pragma: no cover
+            tar_header = doc_dict.copy()
+            if tar_header["merge_level"] == 9:
+                load_result = self._header_load(tar_header, destination, tar_topic_id, tar_table_id)
+            elif tar_header["merge_level"] == 8:
+                load_result = self._archive_load(tar_header, destination, tar_topic_id, tar_table_id)
             else:
-                start_merge_key = self.depositor.get_header_from_ref(start_merge_ref).get('sort_key')
-                package_load_config = load_config.copy()
-                package_load_config.update({'load_type': 'package', 'start_key': start_key, 'end_key': start_merge_key})
-                self.logger.info("Package load range {}-{}".format(start_key, start_merge_key), extra=self.log_context)
-                self._package_load(header_dict, package_load_config)
-                self.logger.info("Document load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
-                self._normal_load(header_dict, destination, tar_topic_id, tar_config_id,
-                                  start_merge_key, end_key, fields, filters)
-                package_load_config.update({'load_type': 'package', 'start_key': start_merge_key, 'end_key': end_key})
-                self.logger.info("Package load range {}-{}".format(start_merge_key, end_key), extra=self.log_context)
-                self._package_load(header_dict, package_load_config)
-            return True
-        elif load_type == 'header':
-            return self._header_load(header_dict, destination, tar_topic_id, tar_config_id, fields)
-        elif load_type == 'normal':
-            start_key, end_key = load_config['start_key'], load_config['end_key']
-            return self._normal_load(header_dict, destination, tar_topic_id, tar_config_id,
-                                     start_key, end_key, fields, filters)
-        elif load_type == 'package':
-            start_key, end_key = load_config['start_key'], load_config['end_key']
-            self.logger.info("Package load range {}-{}".format(start_key, end_key), extra=self.log_context)
-            return self._package_load(header_dict, load_config)
-        else:
-            self.logger.error("load type {} not supported".format(load_type), extra=self.log_context)
-            return True
+                load_result = self._document_load(tar_header, destination, tar_topic_id, tar_table_id)
+            if not load_result:
+                error_list.append({"merge_key": doc_dict["merge_key"]})  # pragma: no cover
+        return error_list
