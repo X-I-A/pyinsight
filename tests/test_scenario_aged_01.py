@@ -5,7 +5,7 @@ import gzip
 import asyncio
 import logging
 import pytest
-from xialib import IoListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer
+from xialib import IoListArchiver, FileDepositor, BasicTranslator, BasicPublisher, BasicSubscriber, BasicStorer, BasicFlower
 from pyinsight.packager import Packager
 from pyinsight.merger import Merger
 from pyinsight.loader import Loader
@@ -31,8 +31,8 @@ publisher = {'client-001': publisher,
 receiver = Receiver(depositor=depositor)
 merger = Merger(depositor=depositor)
 packager = Packager(depositor=depositor, archiver=archiver)
-msg_loader = Loader(depositor=depositor, archiver=archiver, publisher=publisher)
-file_loader = Loader(depositor=depositor, archiver=archiver, storer=storer, publisher=publisher)
+msg_loader = Loader(depositor=depositor, archiver=archiver, publisher=publisher,
+                    route_file=os.path.join(".", "input", "loader.zip"))
 cleaner = Cleaner(depositor=depositor, archiver=archiver)
 
 load_config1 = {
@@ -41,11 +41,9 @@ load_config1 = {
     'src_table_id': 'aged_data',
     'destination': os.path.join('.', 'output', 'loader'),
     'tar_topic_id': 'test_01',
-    'tar_config_id': 'aged_01',
-    'fields': ['id', 'first_name', 'last_name', 'height', 'children', 'lucky_numbers'],
-    'filters': [[['gender', '=', 'Male'], ['height', '>=', 175]],
-              [['gender', '=', 'Female'], ['weight', '<=', 100]]],
-    'load_type': 'initial'
+    'tar_table_id': 'aged_01',
+    'start_key': '20201013222500000016',
+    'end_key': '20211113222500000016'
 }
 
 def merger_callback(s: BasicSubscriber, message: dict, source, subscription_id):
@@ -119,7 +117,6 @@ def normal_data_test():
     packager.package_size = 2 ** 16
     packager.package_data('scenario_01', 'normal_data')
 
-
 def aged_data_test():
     # Aged Data Receive
     with open(os.path.join('.', 'input', 'person_complex', 'schema.json'), 'rb') as f:
@@ -182,17 +179,8 @@ def aged_data_test():
 
 def load_data_test():
 
-    # Load data 1
-    load_config1['load_type'] = 'header'
-    msg_loader.load(load_config1)
-    load_config1['load_type'] = 'initial'
-    msg_loader.load(load_config1)
-
-    for x in range(10):
-        for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
-            header, data, msg_id = subscriber.unpack_message(msg)
-            msg_loader.load(load_config=json.loads(header['load_config']))
-            subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
+    err_list = msg_loader.load(**load_config1)
+    assert not err_list
 
     # Save new loaded data
     counter = 0
@@ -201,8 +189,6 @@ def load_data_test():
         record_data = json.loads(gzip.decompress(base64.b64decode(data)).decode())
         if int(header.get('age', 0)) != 1:
             counter += len(record_data)
-        if 'config_id' in header:
-            header['table_id'] = header.pop('config_id')
         receiver.receive_data(header, record_data)
         subscriber.ack(os.path.join('.', 'output', 'loader'), 'test_01', msg_id)
     assert counter == 999
@@ -216,24 +202,14 @@ def load_data_test():
         counter += doc_dict['line_nb']
     assert counter == 999
 
-    # Load skip check number >
-    load_config3 = load_config1.copy()
-    load_config3['load_type'] = 'package'
-    load_config3['filters'] = [[['id', '>=', 2000]]]
-    load_config3['start_key'] = '20201113222500000016'
-    load_config3['end_key'] = '20201113222500000016'
-    msg_loader.load(load_config=load_config3)
+    msg_loader.route_file=os.path.join(".", "input", "loader1.zip")
+    msg_loader.load(**load_config1)
 
-    # Load skip check number <
-    load_config4 = load_config3.copy()
-    load_config4['filters'] = [[['id', '<', -1000]]]
-    msg_loader.load(load_config=load_config4)
+    msg_loader.route_file = os.path.join(".", "input", "loader2.zip")
+    msg_loader.load(**load_config1)
 
-    # Load skip check number <
-    load_config5 = load_config3.copy()
-    load_config5['filters'] = [[['city', '=', '上海']]]
-    msg_loader.load(load_config=load_config5)
-
+    msg_loader.route_file = os.path.join(".", "input", "loader3.zip")
+    msg_loader.load(**load_config1)
 
 def final_clean():
     cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')

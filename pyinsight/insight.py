@@ -99,7 +99,7 @@ class Insight(Service):
         return cls.messager.publish(cls.channel, cls.topic_loader, header, b'[]')
 
     @classmethod
-    def trigger_backlog(cls, header: dict, error_body: List[dict]):
+    def trigger_backlog(cls, header: dict, error_body: List[dict]):  # pragma: no cover
         return cls.messager.publish(cls.channel, cls.topic_backlog, header,
                                     gzip.compress(json.dumps(error_body, ensure_ascii=False).encode()))
 
