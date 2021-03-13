@@ -27,4 +27,4 @@ __all__ = \
     + packager.__all__ \
     + receiver.__all__
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"

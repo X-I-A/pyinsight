@@ -7,7 +7,7 @@ import datetime
 import zipfile
 from functools import lru_cache, wraps
 from typing import List, Dict, Tuple, Union
-from xialib import backlog, Publisher, BasicFlower, SegmentFlower, BasicStorer
+from xialib import backlog, Publisher, BasicFlower, SegmentFlower, BasicStorer, IOStorer
 from pyinsight.insight import Insight
 
 __all__ = ['Dispatcher']
@@ -27,6 +27,29 @@ def timed_lru_cache(maxsize: int = 1024):
             return func(*args, **kwargs)
         return wrapped_func
     return wrapper_cache
+
+
+@timed_lru_cache()
+def get_routes(route_file: str, storer: IOStorer, src_topic_id: str, src_table_id) -> list:
+    """Get Route Table for specific topic and table
+
+    """
+    l2_path = src_topic_id + "/" + src_table_id
+    for route_io in storer.get_io_stream(route_file):
+        with zipfile.ZipFile(route_io) as route_zip:
+            try:
+                with route_zip.open(l2_path) as route_fp:
+                    route_list = []
+                    for key, routes in json.load(route_fp).items():
+                        route_list.extend(routes)
+                        logging.info("Route {}-{} Loaded".format(src_topic_id, src_table_id))
+                        return route_list
+            except Exception as e:  # pragma: no cover
+                logging.warning("Route {}-{} Load Error or Not found".format(src_topic_id, src_table_id))
+                return []  # pragma: no cover
+    logging.warning("Route {}-{} Not found".format(src_topic_id, src_table_id))  # pragma: no cover
+    return []  # pragma: no cover
+
 
 class Dispatcher(Insight):
     """Receive pushed data, save to depositor and publish to different destinations
@@ -100,32 +123,8 @@ class Dispatcher(Insight):
             else:
                 self.default_routes[route["source"]] = [route["target"]]
 
-    @timed_lru_cache()
-    def get_routes(self, src_topic_id, src_table_id) -> list:
-        """Get Route Table for specific topic and table
-
-        """
-        l2_path = src_topic_id + "/" + src_table_id
-        for route_io in self.storer.get_io_stream(self.route_file):
-            with zipfile.ZipFile(route_io) as route_zip:
-                try:
-                    with route_zip.open(l2_path) as route_fp:
-                        route_list = []
-                        for key, routes in json.load(route_fp).items():
-                            route_list.extend(routes)
-                            self.logger.info("Route {}-{} Loaded".format(src_topic_id, src_table_id),
-                                             extra=self.log_context)
-                            return route_list
-                except Exception as e:  # pragma: no cover
-                    self.logger.warning("Route {}-{} Load Error or Not found".format(src_topic_id, src_table_id),
-                                        extra=self.log_context)
-                    return []  # pragma: no cover
-        self.logger.warning("Route {}-{} Not found".format(src_topic_id, src_table_id),
-                            extra=self.log_context)  # pragma: no cover
-        return []  # pragma: no cover
-
     def get_config_by_publisher(self, src_topic_id, src_table_id):
-        table_routes = self.get_routes(src_topic_id, src_table_id)
+        table_routes = get_routes(self.route_file, self.storer, src_topic_id, src_table_id)
         for default_tar_topic in self.default_routes.get(src_topic_id, []):
             if default_tar_topic not in [route["tar_topic_id"] for route in table_routes]:
                 table_routes.append({"src_topic_id": src_topic_id, "src_table_id": src_table_id,

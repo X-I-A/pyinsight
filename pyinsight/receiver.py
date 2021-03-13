@@ -14,21 +14,13 @@ class Receiver(Insight):
     """Receive pushed data, save to depositor and publish to different destinations
 
     Attributes:
-        storers (:obj:`list` of :obj:`Storer`): Read the data which is not in a message body
-        storer_dict (:obj:`list`): data_store Type and its related Storer
         depoistor (:obj:`Depositor`): Depositor attach to this receiver
-        publishers (:obj:`dict` of :obj:`Publisher`): publisher id, publisher object
-        subscription_list (:obj:`dict`): Subscription Lists (
-            key: source topic id, source table id
-            value: list of dictionary (
-            key: publisher id
-            value: (target destination, target topic id, target table id, field list, filters list)))
 
     Notes:
         filter list must in the NDF form of list(list(list)))
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, depositor, **kwargs):
+        super().__init__(depositor=depositor, **kwargs)
         self.logger = logging.getLogger("Insight.Receiver")
         self.logger.level = self.log_level
         if len(self.logger.handlers) == 0:
