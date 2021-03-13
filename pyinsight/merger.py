@@ -24,8 +24,7 @@ class Merger(Insight):
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 
-    def merge_data(self, topic_id: str, table_id: str, merge_key: str, merge_level: int, target_merge_level: int,
-                   **kwargs):
+    def merge_data(self, topic_id: str, table_id: str, merge_key: str, merge_level: int):
         self.log_context['context'] = '-'.join([topic_id, table_id])
         self.depositor.set_current_topic_table(topic_id, table_id)
         self.logger.info('Merging {}({})'.format(merge_key, merge_level), extra=self.log_context)
@@ -37,9 +36,9 @@ class Merger(Insight):
         self.depositor.set_current_topic_table(topic_id, table_id)
         for doc in self.depositor.get_stream_by_sort_key(min_merge_level=1, status_list=["initial"]):
             doc_header = self.depositor.get_header_from_ref(doc)
-            self.merge_data(topic_id, table_id, doc_header["merge_key"], 1, 1)
+            self.merge_data(topic_id, table_id, doc_header["merge_key"], 1)
         # Need to fill the isolated merged fields
         for lvl in range(2, 8):
             for doc in self.depositor.get_stream_by_sort_key(min_merge_level=lvl, status_list=["initial", "merged"]):
                 doc_header = self.depositor.get_header_from_ref(doc)
-                self.merge_data(topic_id, table_id, doc_header["merge_key"], lvl, lvl)
+                self.merge_data(topic_id, table_id, doc_header["merge_key"], lvl)
