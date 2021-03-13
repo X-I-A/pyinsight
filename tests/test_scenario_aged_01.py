@@ -58,31 +58,6 @@ def purger():
     # Insight.log_level = logging.INFO
     # Insight Level Settings
     messager = BasicPublisher()
-    Insight.set_internal_channel(messager=messager,
-                                 id='x-i-a-test',
-                                 topic_backlog='backlog',
-                                 topic_cleaner='cleaner',
-                                 topic_cockpit='cockpit',
-                                 topic_loader='loader',
-                                 topic_merger='merger',
-                                 topic_packager='packager',
-                                 channel=os.path.join('.', 'insight', 'messager'))
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_merger):
-        msg_id = subscriber.unpack_message(msg)[2]
-        subscriber.ack(Insight.channel, Insight.topic_merger, msg_id)
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_loader):
-        msg_id = subscriber.unpack_message(msg)[2]
-        subscriber.ack(Insight.channel, Insight.topic_loader, msg_id)
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_packager):
-        msg_id = subscriber.unpack_message(msg)[2]
-        subscriber.ack(Insight.channel, Insight.topic_packager, msg_id)
-
-    for msg in subscriber.pull(Insight.channel, Insight.topic_cleaner):
-        msg_id = subscriber.unpack_message(msg)[2]
-        subscriber.ack(Insight.channel, Insight.topic_cleaner, msg_id)
 
     cleaner.clean_data('scenario_01', 'normal_data', '99991231000000000000')
 
@@ -107,13 +82,14 @@ def normal_data_test():
     receiver.receive_data(normal_header, normal_data_body)
 
     merger.merge_all_data("scenario_01", "normal_data")
+    """
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
     merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
     loop.run_until_complete(asyncio.wait([merge_task]))
     loop.close()
-
+    """
     packager.package_size = 2 ** 16
     packager.package_data('scenario_01', 'normal_data')
 
@@ -152,13 +128,14 @@ def aged_data_test():
     receiver.receive_data(age_header, age_data_body)
     merger.merge_all_data("scenario_01", "aged_data")
 
+    """
     # Merge message streaming
     asyncio.set_event_loop(asyncio.new_event_loop())
     loop = asyncio.get_event_loop()
     merge_task = subscriber.stream(Insight.channel, Insight.topic_merger, callback=merger_callback, timeout=2)
     loop.run_until_complete(asyncio.wait([merge_task]))
     loop.close()
-
+    """
     packager.package_data('scenario_01', 'aged_data')
 
     # Check data

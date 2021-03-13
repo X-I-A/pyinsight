@@ -161,10 +161,6 @@ class Dispatcher(Insight):
             self.logger.info("Dispatch to {}-{}-{}".format(destination[0],
                                                            destination[1],
                                                            destination[2]), extra=self.log_context)
-            if int(tar_header.get('age', 0)) == 1:
-                self.logger.info("Sending table creation event", extra=self.log_context)
-                tar_header['event_type'] = 'target_table_update'
-                self.trigger_cockpit(tar_header, tar_data)
             publisher.publish(destination[0], destination[1], tar_header,
                               gzip.compress(json.dumps(tar_data, ensure_ascii=False).encode()))
 
